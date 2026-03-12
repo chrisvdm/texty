@@ -4,14 +4,20 @@ import { env } from "cloudflare:workers";
 import { requestInfo, serverQuery } from "rwsdk/worker";
 
 import { buildMemoryContext, refreshMemories } from "./chat.memory";
-import { loadChatSession, saveChatSession } from "./chat.storage";
+import {
+  deleteChatSession,
+  loadChatSession,
+  saveChatSession,
+} from "./chat.storage";
 import {
   MAX_CONTEXT_MESSAGES,
   createAssistantMessage,
+  createEmptyGlobalMemory,
   createInitialChatState,
   createThreadSummary,
   createUserMessage,
   getThreadTitleFromMessages,
+  pruneGlobalMemoryByThreadId,
   type ChatMessage,
   type ChatSessionState,
   type ChatThreadSummary,
@@ -341,6 +347,70 @@ export const selectChatThread = serverQuery(
     };
 
     const threadSession = await loadChatSession(nextThreadId);
+
+    await persistBrowserSession(nextSession);
+
+    return formatThreadState(nextSession, threadSession);
+  },
+  { method: "POST" },
+);
+
+export const deleteChatThread = serverQuery(
+  async (threadId: string) => {
+    const browserSession = requireBrowserSession();
+    const targetThreadId = threadId.trim();
+
+    if (!targetThreadId) {
+      throw new Error("Choose a thread before trying to delete it.");
+    }
+
+    const threadExists = browserSession.threads.some(
+      (thread) => thread.id === targetThreadId,
+    );
+
+    if (!threadExists) {
+      throw new Error("That thread is no longer available.");
+    }
+
+    await deleteChatSession(targetThreadId);
+
+    const remainingThreads = browserSession.threads.filter(
+      (thread) => thread.id !== targetThreadId,
+    );
+    const nextGlobalMemory =
+      browserSession.threads.length > 1
+        ? pruneGlobalMemoryByThreadId(browserSession.globalMemory, targetThreadId)
+        : createEmptyGlobalMemory();
+
+    if (remainingThreads.length === 0) {
+      const nextThreadId = crypto.randomUUID();
+      const nextThreadState = createInitialChatState();
+
+      await saveChatSession(nextThreadId, nextThreadState);
+
+      const nextSession: BrowserSession = {
+        ...browserSession,
+        activeThreadId: nextThreadId,
+        threads: [createThreadSummary(nextThreadId, nextThreadState.messages.length)],
+        globalMemory: nextGlobalMemory,
+      };
+
+      await persistBrowserSession(nextSession);
+
+      return formatThreadState(nextSession, nextThreadState);
+    }
+
+    const nextActiveThreadId =
+      browserSession.activeThreadId === targetThreadId
+        ? remainingThreads[0].id
+        : browserSession.activeThreadId;
+    const nextSession: BrowserSession = {
+      ...browserSession,
+      activeThreadId: nextActiveThreadId,
+      threads: remainingThreads,
+      globalMemory: nextGlobalMemory,
+    };
+    const threadSession = await loadChatSession(nextActiveThreadId);
 
     await persistBrowserSession(nextSession);
 

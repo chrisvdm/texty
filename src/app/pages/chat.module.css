@@ -141,6 +141,14 @@ body {
   margin-top: 16px;
 }
 
+.threadRow,
+.threadRowActive {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
 .threadButton,
 .threadButtonActive {
   display: grid;
@@ -162,6 +170,30 @@ body {
 .threadButtonActive {
   background: linear-gradient(135deg, rgba(255, 107, 53, 0.16), rgba(255, 209, 102, 0.34));
   border-color: rgba(255, 107, 53, 0.24);
+}
+
+.deleteThreadButton {
+  padding: 0 12px;
+  border: 1px solid rgba(92, 23, 0, 0.14);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.48);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.deleteThreadButton:hover:enabled {
+  transform: translateY(-1px);
+  color: #8e1d00;
+  border-color: rgba(142, 29, 0, 0.2);
+  background: rgba(255, 239, 232, 0.92);
 }
 
 .threadTitle {

@@ -4,6 +4,7 @@ import { startTransition, useEffect, useRef, useState } from "react";
 
 import {
   createChatThread,
+  deleteChatThread,
   selectChatThread,
   sendChatMessage,
 } from "../chat/chat.service";
@@ -184,6 +185,43 @@ export const ChatClient = ({
     });
   };
 
+  const removeThread = (threadId: string) => {
+    if (isPending) {
+      return;
+    }
+
+    const thread = threads.find((entry) => entry.id === threadId);
+
+    if (
+      !thread ||
+      !window.confirm(`Delete "${thread.title}"? This will also remove memory sourced from this thread.`)
+    ) {
+      return;
+    }
+
+    setError(null);
+    setIsPending(true);
+
+    startTransition(async () => {
+      try {
+        const nextState = await deleteChatThread(threadId);
+        setActiveThreadId(nextState.activeThreadId);
+        setThreads(nextState.threads);
+        setMessages(nextState.session.messages);
+        setDraft("");
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Unable to delete that thread.",
+        );
+      } finally {
+        pendingAssistantIdRef.current = null;
+        setIsPending(false);
+      }
+    });
+  };
+
   return (
     <section className={styles.shell}>
       <div className={styles.sidebar}>
@@ -206,19 +244,37 @@ export const ChatClient = ({
           </div>
           <div className={styles.threadList}>
             {threads.map((thread) => (
-              <button
+              <div
                 key={thread.id}
-                type="button"
                 className={
                   thread.id === activeThreadId
-                    ? styles.threadButtonActive
-                    : styles.threadButton
+                    ? styles.threadRowActive
+                    : styles.threadRow
                 }
-                onClick={() => openThread(thread.id)}
-                disabled={isPending}
               >
-                <span className={styles.threadTitle}>{thread.title}</span>
-              </button>
+                <button
+                  type="button"
+                  className={
+                    thread.id === activeThreadId
+                      ? styles.threadButtonActive
+                      : styles.threadButton
+                  }
+                  onClick={() => openThread(thread.id)}
+                  disabled={isPending}
+                >
+                  <span className={styles.threadTitle}>{thread.title}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.deleteThreadButton}
+                  onClick={() => removeThread(thread.id)}
+                  disabled={isPending}
+                  aria-label={`Delete ${thread.title}`}
+                  title="Delete thread"
+                >
+                  Delete
+                </button>
+              </div>
             ))}
           </div>
         </div>

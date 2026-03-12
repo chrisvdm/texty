@@ -26,3 +26,7 @@ export const saveChatSession = async (
   await getChatStub(sessionId).saveSession(normalizedState);
   return normalizedState;
 };
+
+export const deleteChatSession = async (sessionId: string) => {
+  await getChatStub(sessionId).revokeSession();
+};

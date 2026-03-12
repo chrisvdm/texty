@@ -317,6 +317,50 @@ export const flattenGlobalMemoryFacts = (memory: GlobalMemory) =>
     ...flattenFactGroup(memory.preferences.general),
   ].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 
+const pruneFactArrayByThreadId = (facts: MemoryFact[], threadId: string) =>
+  facts.filter((fact) => fact.sourceThreadId !== threadId);
+
+const pruneFactGroupByThreadId = (
+  group: MemoryFactGroup,
+  threadId: string,
+): MemoryFactGroup =>
+  Object.fromEntries(
+    Object.entries(group)
+      .map(([key, facts]) => [key, pruneFactArrayByThreadId(facts, threadId)])
+      .filter(([, facts]) => facts.length > 0),
+  );
+
+export const pruneGlobalMemoryByThreadId = (
+  memory: GlobalMemory,
+  threadId: string,
+): GlobalMemory => {
+  const nextMemory: GlobalMemory = {
+    ...memory,
+    identity: pruneFactGroupByThreadId(memory.identity, threadId),
+    family: pruneFactGroupByThreadId(memory.family, threadId),
+    work: pruneFactGroupByThreadId(memory.work, threadId),
+    preferences: {
+      favorite: pruneFactGroupByThreadId(memory.preferences.favorite, threadId),
+      likes: pruneFactArrayByThreadId(memory.preferences.likes, threadId),
+      dislikes: pruneFactArrayByThreadId(memory.preferences.dislikes, threadId),
+      interests: pruneFactArrayByThreadId(memory.preferences.interests, threadId),
+      fears: pruneFactArrayByThreadId(memory.preferences.fears, threadId),
+      general: pruneFactGroupByThreadId(memory.preferences.general, threadId),
+    },
+    threadSummaries: memory.threadSummaries.filter(
+      (summary) => summary.threadId !== threadId,
+    ),
+    markdown: "",
+  };
+
+  nextMemory.markdown = buildGlobalMemoryMarkdown({
+    memory: nextMemory,
+    threadSummaries: nextMemory.threadSummaries,
+  });
+
+  return nextMemory;
+};
+
 export const buildThreadMemoryMarkdown = ({
   summary,
   keywords,
