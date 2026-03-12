@@ -2,32 +2,41 @@ import { render, route } from "rwsdk/router";
 import { defineApp } from "rwsdk/worker";
 
 import { ChatSessionDurableObject } from "@/app/chat/chat-session-do";
-import {
-  createChatCookie,
-  createChatSessionId,
-  getChatSessionId,
-} from "@/app/chat/session";
+import { createInitialChatState } from "@/app/chat/shared";
+import { saveChatSession } from "@/app/chat/chat.storage";
 import { Document } from "@/app/document";
 import { setCommonHeaders } from "@/app/headers";
 import { Home } from "@/app/pages/home";
+import { BrowserSessionDurableObject } from "@/app/session/browser-session-do";
+import {
+  browserSessionStore,
+  type BrowserSession,
+} from "@/app/session/session";
 
 export type AppContext = {
-  chatSessionId: string;
+  session: BrowserSession;
 };
 
 export default defineApp([
   setCommonHeaders(),
-  ({ request, response, ctx }) => {
-    const existingSessionId = getChatSessionId(request);
-    const chatSessionId = existingSessionId || createChatSessionId();
+  async ({ request, response, ctx }) => {
+    const existingSession = await browserSessionStore.load(request);
 
-    if (!existingSessionId) {
-      response.headers.set("Set-Cookie", createChatCookie(chatSessionId));
+    if (existingSession) {
+      ctx.session = existingSession;
+      return;
     }
 
-    ctx.chatSessionId = chatSessionId;
+    const session = {
+      chatId: crypto.randomUUID(),
+    };
+
+    await saveChatSession(session.chatId, createInitialChatState());
+    await browserSessionStore.save(response.headers, session, { maxAge: true });
+
+    ctx.session = session;
   },
   render(Document, [route("/", Home)]),
 ]);
 
-export { ChatSessionDurableObject };
+export { BrowserSessionDurableObject, ChatSessionDurableObject };

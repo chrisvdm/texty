@@ -1,5 +1,5 @@
 import { ChatShell } from "./chat-shell";
 
-export const Home = ({ ctx }: { ctx: { chatSessionId: string } }) => {
-  return <ChatShell chatSessionId={ctx.chatSessionId} />;
+export const Home = ({ ctx }: { ctx: { session: { chatId: string } } }) => {
+  return <ChatShell chatSessionId={ctx.session.chatId} />;
 };

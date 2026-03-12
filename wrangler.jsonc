@@ -25,6 +25,10 @@
   "durable_objects": {
     "bindings": [
       {
+        "name": "BROWSER_SESSIONS",
+        "class_name": "BrowserSessionDurableObject"
+      },
+      {
         "name": "CHAT_SESSIONS",
         "class_name": "ChatSessionDurableObject"
       }
@@ -35,6 +39,10 @@
     {
       "tag": "v1",
       "new_sqlite_classes": ["ChatSessionDurableObject"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["BrowserSessionDurableObject"]
     }
   ],
 

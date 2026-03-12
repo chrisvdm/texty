@@ -1,5 +1,8 @@
 declare namespace Cloudflare {
   interface Env {
+    BROWSER_SESSIONS: DurableObjectNamespace<
+      import("../src/app/session/browser-session-do").BrowserSessionDurableObject
+    >;
     CHAT_SESSIONS: DurableObjectNamespace<
       import("../src/app/chat/chat-session-do").ChatSessionDurableObject
     >;

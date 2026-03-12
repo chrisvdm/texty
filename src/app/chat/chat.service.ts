@@ -3,7 +3,6 @@
 import { env } from "cloudflare:workers";
 import { requestInfo, serverQuery } from "rwsdk/worker";
 
-import { getChatSessionId } from "./session";
 import { loadChatSession, saveChatSession } from "./chat.storage";
 import {
   MAX_CONTEXT_MESSAGES,
@@ -41,8 +40,7 @@ const buildPromptContext = (messages: ChatMessage[]): OpenRouterMessage[] =>
     .map(({ role, content }) => ({ role, content }));
 
 const requireChatSessionId = () => {
-  const sessionId =
-    requestInfo.ctx.chatSessionId || getChatSessionId(requestInfo.request);
+  const sessionId = requestInfo.ctx.session?.chatId;
 
   if (!sessionId) {
     throw new Error("No active chat session found. Refresh the page and try again.");
