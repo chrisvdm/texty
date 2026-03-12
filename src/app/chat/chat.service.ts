@@ -8,10 +8,14 @@ import {
   MAX_CONTEXT_MESSAGES,
   createAssistantMessage,
   createInitialChatState,
+  createThreadSummary,
   createUserMessage,
+  getThreadTitleFromMessages,
   type ChatMessage,
   type ChatSessionState,
+  type ChatThreadSummary,
 } from "./shared";
+import { browserSessionStore, type BrowserSession } from "../session/session";
 
 type OpenRouterMessage = {
   role: "system" | "user" | "assistant";
@@ -39,14 +43,72 @@ const buildPromptContext = (messages: ChatMessage[]): OpenRouterMessage[] =>
     .slice(-MAX_CONTEXT_MESSAGES)
     .map(({ role, content }) => ({ role, content }));
 
-const requireChatSessionId = () => {
-  const sessionId = requestInfo.ctx.session?.chatId;
+const requireBrowserSession = () => {
+  const session = requestInfo.ctx.session as BrowserSession | undefined;
 
-  if (!sessionId) {
+  if (!session?.activeThreadId) {
     throw new Error("No active chat session found. Refresh the page and try again.");
   }
 
-  return sessionId;
+  return session;
+};
+
+const persistBrowserSession = async (session: BrowserSession) => {
+  await browserSessionStore.save(requestInfo.response.headers, session, {
+    maxAge: true,
+  });
+  requestInfo.ctx.session = session;
+};
+
+const requireChatSessionId = () => requireBrowserSession().activeThreadId;
+
+const updateThreadSummaries = (
+  threads: ChatThreadSummary[],
+  nextSummary: ChatThreadSummary,
+) =>
+  threads
+    .map((thread) => (thread.id === nextSummary.id ? nextSummary : thread))
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+
+const buildThreadSummary = (
+  currentSummary: ChatThreadSummary,
+  messages: ChatMessage[],
+) => ({
+  ...currentSummary,
+  title: getThreadTitleFromMessages(messages),
+  updatedAt: messages.at(-1)?.createdAt || currentSummary.updatedAt,
+  messageCount: messages.length,
+});
+
+const formatThreadState = (
+  session: BrowserSession,
+  threadSession: ChatSessionState,
+  model?: string,
+) => ({
+  activeThreadId: session.activeThreadId,
+  threads: session.threads,
+  session: threadSession,
+  ...(model ? { model } : {}),
+});
+
+const createAndPersistThread = async () => {
+  const currentSession = requireBrowserSession();
+  const nextThreadId = crypto.randomUUID();
+  const nextThreadState = createInitialChatState();
+
+  await saveChatSession(nextThreadId, nextThreadState);
+
+  const nextSession: BrowserSession = {
+    activeThreadId: nextThreadId,
+    threads: [
+      createThreadSummary(nextThreadId, nextThreadState.messages.length),
+      ...currentSession.threads,
+    ],
+  };
+
+  await persistBrowserSession(nextSession);
+
+  return formatThreadState(nextSession, nextThreadState);
 };
 
 const generateAssistantReply = async (messages: ChatMessage[]) => {
@@ -110,6 +172,7 @@ export const sendChatMessage = serverQuery(
     }
 
     const sessionId = requireChatSessionId();
+    const browserSession = requireBrowserSession();
     const currentState = await loadChatSession(sessionId);
     const withUserMessage = {
       messages: [...currentState.messages, createUserMessage(content)],
@@ -125,10 +188,25 @@ export const sendChatMessage = serverQuery(
 
       await saveChatSession(sessionId, nextState);
 
-      return {
-        model: reply.model,
-        session: nextState,
+      const currentSummary = browserSession.threads.find(
+        (thread) => thread.id === sessionId,
+      );
+
+      if (!currentSummary) {
+        throw new Error("The active thread could not be found.");
+      }
+
+      const nextSession: BrowserSession = {
+        ...browserSession,
+        threads: updateThreadSummaries(
+          browserSession.threads,
+          buildThreadSummary(currentSummary, nextState.messages),
+        ),
       };
+
+      await persistBrowserSession(nextSession);
+
+      return formatThreadState(nextSession, nextState, reply.model);
     } catch (error) {
       await saveChatSession(sessionId, currentState);
       throw error;
@@ -140,11 +218,71 @@ export const sendChatMessage = serverQuery(
 export const resetChatSession = serverQuery(
   async () => {
     const sessionId = requireChatSessionId();
+    const browserSession = requireBrowserSession();
     const nextState = createInitialChatState();
 
     await saveChatSession(sessionId, nextState);
 
-    return nextState;
+    const currentSummary = browserSession.threads.find(
+      (thread) => thread.id === sessionId,
+    );
+
+    if (!currentSummary) {
+      throw new Error("The active thread could not be found.");
+    }
+
+    const nextSession: BrowserSession = {
+      ...browserSession,
+      threads: updateThreadSummaries(
+        browserSession.threads,
+        {
+          ...currentSummary,
+          title: createThreadSummary(sessionId).title,
+          updatedAt: new Date().toISOString(),
+          messageCount: nextState.messages.length,
+        },
+      ),
+    };
+
+    await persistBrowserSession(nextSession);
+
+    return formatThreadState(nextSession, nextState);
+  },
+  { method: "POST" },
+);
+
+export const createChatThread = serverQuery(
+  async () => createAndPersistThread(),
+  { method: "POST" },
+);
+
+export const selectChatThread = serverQuery(
+  async (threadId: string) => {
+    const browserSession = requireBrowserSession();
+    const nextThreadId = threadId.trim();
+
+    if (!nextThreadId) {
+      throw new Error("Choose a thread before trying to open it.");
+    }
+
+    const threadExists = browserSession.threads.some(
+      (thread) => thread.id === nextThreadId,
+    );
+
+    if (!threadExists) {
+      throw new Error("That thread is no longer available.");
+    }
+
+    const nextSession: BrowserSession = {
+      ...browserSession,
+      activeThreadId: nextThreadId,
+    };
+
+    const threadSession = await loadChatSession(nextThreadId);
+
+    await persistBrowserSession(nextSession);
+
+    return formatThreadState(nextSession, threadSession);
   },
   { method: "POST" },
 );

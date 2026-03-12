@@ -11,7 +11,17 @@ export type ChatSessionState = {
   messages: ChatMessage[];
 };
 
+export type ChatThreadSummary = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+};
+
 export const MAX_CONTEXT_MESSAGES = 6;
+export const DEFAULT_THREAD_TITLE = "Untitled thread";
+export const INITIAL_MESSAGE_COUNT = 1;
 
 export const createAssistantMessage = (content: string): ChatMessage => ({
   id: crypto.randomUUID(),
@@ -34,3 +44,28 @@ export const createInitialChatState = (): ChatSessionState => ({
     ),
   ],
 });
+
+export const createThreadSummary = (
+  id: string,
+  messageCount = INITIAL_MESSAGE_COUNT,
+): ChatThreadSummary => {
+  const timestamp = new Date().toISOString();
+
+  return {
+    id,
+    title: DEFAULT_THREAD_TITLE,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    messageCount,
+  };
+};
+
+export const getThreadTitleFromMessages = (messages: ChatMessage[]) => {
+  const firstUserMessage = messages.find((message) => message.role === "user");
+
+  if (!firstUserMessage) {
+    return DEFAULT_THREAD_TITLE;
+  }
+
+  return firstUserMessage.content.replace(/\s+/g, " ").trim().slice(0, 48);
+};

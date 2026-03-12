@@ -10,6 +10,8 @@ import { Home } from "@/app/pages/home";
 import { BrowserSessionDurableObject } from "@/app/session/browser-session-do";
 import {
   browserSessionStore,
+  createBrowserSession,
+  normalizeBrowserSession,
   type BrowserSession,
 } from "@/app/session/session";
 
@@ -23,15 +25,26 @@ export default defineApp([
     const existingSession = await browserSessionStore.load(request);
 
     if (existingSession) {
-      ctx.session = existingSession;
+      const normalizedSession = normalizeBrowserSession(existingSession);
+
+      if (
+        normalizedSession.activeThreadId !==
+          (existingSession as BrowserSession).activeThreadId ||
+        normalizedSession.threads !== (existingSession as BrowserSession).threads
+      ) {
+        await browserSessionStore.save(response.headers, normalizedSession, {
+          maxAge: true,
+        });
+      }
+
+      ctx.session = normalizedSession;
       return;
     }
 
-    const session = {
-      chatId: crypto.randomUUID(),
-    };
+    const threadId = crypto.randomUUID();
+    const session = createBrowserSession(threadId);
 
-    await saveChatSession(session.chatId, createInitialChatState());
+    await saveChatSession(threadId, createInitialChatState());
     await browserSessionStore.save(response.headers, session, { maxAge: true });
 
     ctx.session = session;

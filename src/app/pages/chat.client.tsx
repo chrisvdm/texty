@@ -2,16 +2,28 @@
 
 import { startTransition, useEffect, useRef, useState } from "react";
 
-import { resetChatSession, sendChatMessage } from "../chat/chat.service";
-import type { ChatMessage } from "../chat/shared";
+import {
+  createChatThread,
+  selectChatThread,
+  sendChatMessage,
+} from "../chat/chat.service";
+import type { ChatMessage, ChatThreadSummary } from "../chat/shared";
 import styles from "./chat.module.css";
 
 type ChatClientProps = {
+  activeThreadId: string;
   initialMessages: ChatMessage[];
+  initialThreads: ChatThreadSummary[];
 };
 
-export const ChatClient = ({ initialMessages }: ChatClientProps) => {
+export const ChatClient = ({
+  activeThreadId: initialActiveThreadId,
+  initialMessages,
+  initialThreads,
+}: ChatClientProps) => {
+  const [activeThreadId, setActiveThreadId] = useState(initialActiveThreadId);
   const [messages, setMessages] = useState(initialMessages);
+  const [threads, setThreads] = useState(initialThreads);
   const [draft, setDraft] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,8 +32,10 @@ export const ChatClient = ({ initialMessages }: ChatClientProps) => {
   const pendingAssistantIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    setActiveThreadId(initialActiveThreadId);
     setMessages(initialMessages);
-  }, [initialMessages]);
+    setThreads(initialThreads);
+  }, [initialActiveThreadId, initialMessages, initialThreads]);
 
   useEffect(() => {
     const container = logRef.current;
@@ -79,6 +93,8 @@ export const ChatClient = ({ initialMessages }: ChatClientProps) => {
     startTransition(async () => {
       try {
         const result = await sendChatMessage(content);
+        setActiveThreadId(result.activeThreadId);
+        setThreads(result.threads);
         setModel(result.model);
         setMessages(result.session.messages);
       } catch (caughtError) {
@@ -109,7 +125,35 @@ export const ChatClient = ({ initialMessages }: ChatClientProps) => {
     }
   };
 
-  const clearConversation = () => {
+  const openThread = (threadId: string) => {
+    if (isPending || threadId === activeThreadId) {
+      return;
+    }
+
+    setError(null);
+    setIsPending(true);
+
+    startTransition(async () => {
+      try {
+        const nextThread = await selectChatThread(threadId);
+        setActiveThreadId(nextThread.activeThreadId);
+        setThreads(nextThread.threads);
+        setMessages(nextThread.session.messages);
+        setDraft("");
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Unable to open that thread.",
+        );
+      } finally {
+        pendingAssistantIdRef.current = null;
+        setIsPending(false);
+      }
+    });
+  };
+
+  const addThread = () => {
     if (isPending) {
       return;
     }
@@ -119,15 +163,19 @@ export const ChatClient = ({ initialMessages }: ChatClientProps) => {
 
     startTransition(async () => {
       try {
-        const nextSession = await resetChatSession();
-        setMessages(nextSession.messages);
+        const nextThread = await createChatThread();
+        setActiveThreadId(nextThread.activeThreadId);
+        setThreads(nextThread.threads);
+        setMessages(nextThread.session.messages);
+        setDraft("");
       } catch (caughtError) {
         setError(
           caughtError instanceof Error
             ? caughtError.message
-            : "Unable to reset the conversation.",
+            : "Unable to create a new thread.",
         );
       } finally {
+        pendingAssistantIdRef.current = null;
         setIsPending(false);
       }
     });
@@ -137,9 +185,44 @@ export const ChatClient = ({ initialMessages }: ChatClientProps) => {
     <section className={styles.shell}>
       <div className={styles.sidebar}>
         <div className={styles.sidebarPanel}>
+          <div className={styles.sidebarHeader}>
+            <div>
+              <p className={styles.sidebarLabel}>Threads</p>
+              <p className={styles.sidebarHint}>
+                Session-backed conversations you can return to.
+              </p>
+            </div>
+            <button
+              type="button"
+              className={styles.newThreadButton}
+              onClick={addThread}
+              disabled={isPending}
+            >
+              New thread
+            </button>
+          </div>
+          <div className={styles.threadList}>
+            {threads.map((thread) => (
+              <button
+                key={thread.id}
+                type="button"
+                className={
+                  thread.id === activeThreadId
+                    ? styles.threadButtonActive
+                    : styles.threadButton
+                }
+                onClick={() => openThread(thread.id)}
+                disabled={isPending}
+              >
+                <span className={styles.threadTitle}>{thread.title}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className={styles.sidebarPanel}>
           <p className={styles.sidebarLabel}>Status</p>
           <p className={styles.sidebarValue}>
-            {isPending ? "Saving and generating..." : "Persisted in session"}
+            {isPending ? "Updating active thread..." : "Persisted in session"}
           </p>
         </div>
         <div className={styles.sidebarPanel}>
@@ -149,24 +232,6 @@ export const ChatClient = ({ initialMessages }: ChatClientProps) => {
       </div>
 
       <div className={styles.chatFrame}>
-        <div className={styles.chatHeader}>
-          <div>
-            <p className={styles.eyebrow}>Custom AI Workspace</p>
-            <h2 className={styles.chatTitle}>Conversation</h2>
-          </div>
-          <div className={styles.headerActions}>
-            <button
-              type="button"
-              className={styles.resetButton}
-              onClick={clearConversation}
-              disabled={isPending}
-            >
-              Clear thread
-            </button>
-            <div className={styles.liveDot} aria-hidden="true" />
-          </div>
-        </div>
-
         <div className={styles.chatLogFrame}>
           <div className={styles.chatLog} ref={logRef}>
             {messages.map((message) => (
