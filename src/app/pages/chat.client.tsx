@@ -7,7 +7,10 @@ import {
   selectChatThread,
   sendChatMessage,
 } from "../chat/chat.service";
-import type { ChatMessage, ChatThreadSummary } from "../chat/shared";
+import type {
+  ChatMessage,
+  ChatThreadSummary,
+} from "../chat/shared";
 import styles from "./chat.module.css";
 
 type ChatClientProps = {
@@ -267,8 +270,8 @@ export const ChatClient = ({
 
           <div className={styles.composerFooter}>
             <p className={styles.helperText}>
-              Full chat history survives refresh. Prompt context currently uses
-              the last 3 exchanges.
+              Full thread history survives refresh. Texty also keeps lightweight
+              thread and user memory.
             </p>
             <button className={styles.submitButton} type="submit" disabled={isPending}>
               {isPending ? "Working..." : "Send"}

@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 
-import type { ChatSessionState } from "./shared";
+import { normalizeChatSessionState, type ChatSessionState } from "./shared";
 
 const getChatStub = (sessionId: string) => {
   const id = env.CHAT_SESSIONS.idFromName(sessionId);
@@ -14,13 +14,15 @@ export const loadChatSession = async (sessionId: string) => {
     throw new Error(String(result.error));
   }
 
-  return result.value;
+  return normalizeChatSessionState(result.value);
 };
 
 export const saveChatSession = async (
   sessionId: string,
   state: ChatSessionState,
 ) => {
-  await getChatStub(sessionId).saveSession(state);
-  return state;
+  const normalizedState = normalizeChatSessionState(state);
+
+  await getChatStub(sessionId).saveSession(normalizedState);
+  return normalizedState;
 };

@@ -6,6 +6,7 @@ import { createInitialChatState } from "@/app/chat/shared";
 import { saveChatSession } from "@/app/chat/chat.storage";
 import { Document } from "@/app/document";
 import { setCommonHeaders } from "@/app/headers";
+import { Debug } from "@/app/pages/debug";
 import { Home } from "@/app/pages/home";
 import { BrowserSessionDurableObject } from "@/app/session/browser-session-do";
 import {
@@ -28,6 +29,7 @@ export default defineApp([
       const normalizedSession = normalizeBrowserSession(existingSession);
 
       if (
+        !("globalMemory" in existingSession) ||
         normalizedSession.activeThreadId !==
           (existingSession as BrowserSession).activeThreadId ||
         normalizedSession.threads !== (existingSession as BrowserSession).threads
@@ -49,7 +51,7 @@ export default defineApp([
 
     ctx.session = session;
   },
-  render(Document, [route("/", Home)]),
+  render(Document, [route("/", Home), route("/debug", Debug)]),
 ]);
 
 export { BrowserSessionDurableObject, ChatSessionDurableObject };

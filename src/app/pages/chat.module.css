@@ -107,6 +107,37 @@ body {
   font-weight: 600;
 }
 
+.debugSection + .debugSection {
+  margin-top: 16px;
+}
+
+.debugHeading {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.debugBody,
+.debugEmpty {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.debugPre {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  border-radius: 9px;
+  background: rgba(64, 20, 0, 0.08);
+  color: var(--text-dark);
+  font-size: 0.74rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .submitButton:hover:enabled,
 .newThreadButton:hover:enabled,
 .threadButton:hover:enabled,

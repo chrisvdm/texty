@@ -3,6 +3,7 @@
 import { env } from "cloudflare:workers";
 import { requestInfo, serverQuery } from "rwsdk/worker";
 
+import { buildMemoryContext, refreshMemories } from "./chat.memory";
 import { loadChatSession, saveChatSession } from "./chat.storage";
 import {
   MAX_CONTEXT_MESSAGES,
@@ -15,7 +16,10 @@ import {
   type ChatSessionState,
   type ChatThreadSummary,
 } from "./shared";
-import { browserSessionStore, type BrowserSession } from "../session/session";
+import {
+  persistBrowserSession as persistSessionState,
+  type BrowserSession,
+} from "../session/session";
 
 type OpenRouterMessage = {
   role: "system" | "user" | "assistant";
@@ -54,8 +58,10 @@ const requireBrowserSession = () => {
 };
 
 const persistBrowserSession = async (session: BrowserSession) => {
-  await browserSessionStore.save(requestInfo.response.headers, session, {
-    maxAge: true,
+  await persistSessionState({
+    request: requestInfo.request,
+    responseHeaders: requestInfo.response.headers,
+    session,
   });
   requestInfo.ctx.session = session;
 };
@@ -87,6 +93,7 @@ const formatThreadState = (
 ) => ({
   activeThreadId: session.activeThreadId,
   threads: session.threads,
+  globalMemory: session.globalMemory,
   session: threadSession,
   ...(model ? { model } : {}),
 });
@@ -99,6 +106,7 @@ const createAndPersistThread = async () => {
   await saveChatSession(nextThreadId, nextThreadState);
 
   const nextSession: BrowserSession = {
+    ...currentSession,
     activeThreadId: nextThreadId,
     threads: [
       createThreadSummary(nextThreadId, nextThreadState.messages.length),
@@ -111,7 +119,13 @@ const createAndPersistThread = async () => {
   return formatThreadState(nextSession, nextThreadState);
 };
 
-const generateAssistantReply = async (messages: ChatMessage[]) => {
+const generateAssistantReply = async ({
+  messages,
+  threadMemoryContext,
+}: {
+  messages: ChatMessage[];
+  threadMemoryContext?: string | null;
+}) => {
   const apiKey = env.OPENROUTER_API_KEY;
 
   if (!apiKey) {
@@ -137,6 +151,14 @@ const generateAssistantReply = async (messages: ChatMessage[]) => {
             role: "system",
             content: SYSTEM_PROMPT,
           },
+          ...(threadMemoryContext
+            ? [
+                {
+                  role: "system" as const,
+                  content: threadMemoryContext,
+                },
+              ]
+            : []),
           ...buildPromptContext(messages),
         ],
       }),
@@ -176,17 +198,50 @@ export const sendChatMessage = serverQuery(
     const currentState = await loadChatSession(sessionId);
     const withUserMessage = {
       messages: [...currentState.messages, createUserMessage(content)],
+      memory: currentState.memory,
     };
 
     await saveChatSession(sessionId, withUserMessage);
 
     try {
-      const reply = await generateAssistantReply(withUserMessage.messages);
+      const threadMemoryContext = buildMemoryContext({
+        userMessage: content,
+        messages: currentState.messages,
+        threadMemory: currentState.memory,
+        globalMemory: browserSession.globalMemory,
+      });
+      const reply = await generateAssistantReply({
+        messages: withUserMessage.messages,
+        threadMemoryContext,
+      });
       const nextState = {
         messages: [...withUserMessage.messages, createAssistantMessage(reply.content)],
+        memory: currentState.memory,
       };
 
       await saveChatSession(sessionId, nextState);
+
+      let finalState = nextState;
+      let nextGlobalMemory = browserSession.globalMemory;
+
+      try {
+        const refreshedMemories = await refreshMemories({
+          threadId: sessionId,
+          messages: nextState.messages,
+          previousThreadMemory: currentState.memory,
+          globalMemory: browserSession.globalMemory,
+        });
+
+        finalState = {
+          ...nextState,
+          memory: refreshedMemories.threadMemory,
+        };
+        nextGlobalMemory = refreshedMemories.globalMemory;
+
+        await saveChatSession(sessionId, finalState);
+      } catch (memoryError) {
+        console.warn("Unable to refresh chat memory", memoryError);
+      }
 
       const currentSummary = browserSession.threads.find(
         (thread) => thread.id === sessionId,
@@ -198,15 +253,16 @@ export const sendChatMessage = serverQuery(
 
       const nextSession: BrowserSession = {
         ...browserSession,
+        globalMemory: nextGlobalMemory,
         threads: updateThreadSummaries(
           browserSession.threads,
-          buildThreadSummary(currentSummary, nextState.messages),
+          buildThreadSummary(currentSummary, finalState.messages),
         ),
       };
 
       await persistBrowserSession(nextSession);
 
-      return formatThreadState(nextSession, nextState, reply.model);
+      return formatThreadState(nextSession, finalState, reply.model);
     } catch (error) {
       await saveChatSession(sessionId, currentState);
       throw error;

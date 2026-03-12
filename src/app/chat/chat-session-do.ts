@@ -1,6 +1,10 @@
 import { DurableObject } from "cloudflare:workers";
 
-import { createInitialChatState, type ChatSessionState } from "./shared";
+import {
+  createInitialChatState,
+  normalizeChatSessionState,
+  type ChatSessionState,
+} from "./shared";
 
 const CHAT_STATE_KEY = "chat-state";
 
@@ -10,7 +14,7 @@ export class ChatSessionDurableObject extends DurableObject {
       await this.ctx.storage.get<ChatSessionState>(CHAT_STATE_KEY);
 
     if (existingState) {
-      return { value: existingState };
+      return { value: normalizeChatSessionState(existingState) };
     }
 
     const initialState = createInitialChatState();
@@ -20,8 +24,10 @@ export class ChatSessionDurableObject extends DurableObject {
   }
 
   async saveSession(data: ChatSessionState) {
-    await this.ctx.storage.put(CHAT_STATE_KEY, data);
-    return data;
+    const normalizedState = normalizeChatSessionState(data);
+
+    await this.ctx.storage.put(CHAT_STATE_KEY, normalizedState);
+    return normalizedState;
   }
 
   async revokeSession() {
