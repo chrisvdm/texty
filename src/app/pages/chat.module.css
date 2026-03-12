@@ -29,16 +29,10 @@ body {
 
 .page {
   min-height: 100vh;
-  padding: 40px 20px 56px;
+  padding: 24px 20px 56px;
 }
 
-.hero {
-  max-width: 1100px;
-  margin: 0 auto 24px;
-}
-
-.badge,
-.promptChip,
+.wordmark,
 .sidebarLabel,
 .messageRole,
 .eyebrow,
@@ -46,46 +40,17 @@ body {
   font-family: "IBM Plex Mono", monospace;
 }
 
-.badge {
-  display: inline-flex;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(92, 23, 0, 0.08);
-  font-size: 0.8rem;
-  text-transform: uppercase;
+.topbar {
+  max-width: 1100px;
+  margin: 0 auto 18px;
+}
+
+.wordmark {
+  display: inline-block;
+  font-size: 0.82rem;
   letter-spacing: 0.08em;
-}
-
-.title {
-  margin: 18px 0 12px;
-  max-width: 720px;
-  font-size: clamp(2.75rem, 6vw, 5.6rem);
-  line-height: 0.94;
-  letter-spacing: -0.05em;
-}
-
-.subtitle {
-  max-width: 720px;
-  margin: 0;
-  font-size: 1.05rem;
-  line-height: 1.6;
-  color: var(--text-muted);
-}
-
-.promptStrip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 22px;
-}
-
-.promptChip {
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(92, 23, 0, 0.08);
-  font-size: 0.78rem;
+  text-transform: lowercase;
+  color: rgba(64, 20, 0, 0.72);
 }
 
 .shell {
@@ -129,33 +94,13 @@ body {
   font-weight: 600;
 }
 
-.quickStarts {
-  display: grid;
-  gap: 10px;
-}
-
-.quickStart {
-  width: 100%;
-  padding: 12px;
-  border: 0;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(255, 107, 53, 0.12), rgba(255, 209, 102, 0.28));
-  color: var(--text-dark);
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-  transition:
-    transform 180ms ease,
-    background 180ms ease;
-}
-
-.quickStart:hover:enabled,
+.resetButton:hover:enabled,
 .submitButton:hover:enabled {
   transform: translateY(-1px);
 }
 
-.quickStart:disabled,
 .submitButton:disabled,
+.resetButton:disabled,
 .textarea:disabled {
   opacity: 0.7;
   cursor: not-allowed;
@@ -214,6 +159,7 @@ body {
   color: var(--text-strong);
   font: inherit;
   cursor: pointer;
+  transition: transform 180ms ease;
 }
 
 .chatLog {
@@ -223,6 +169,23 @@ body {
   min-height: 420px;
   max-height: 60vh;
   overflow-y: auto;
+}
+
+.chatLogFrame {
+  position: relative;
+}
+
+.chatLogFrame::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(92, 23, 0, 0),
+    rgba(92, 23, 0, 0.82)
+  );
 }
 
 .assistantMessage,
@@ -329,11 +292,7 @@ body {
 @media (max-width: 640px) {
   .page {
     padding-inline: 14px;
-    padding-top: 20px;
-  }
-
-  .title {
-    font-size: 2.8rem;
+    padding-top: 16px;
   }
 
   .chatHeader,

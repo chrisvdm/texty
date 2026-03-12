@@ -7,20 +7,17 @@ import type { ChatMessage } from "../chat/shared";
 import styles from "./chat.module.css";
 
 type ChatClientProps = {
-  starterPrompts: string[];
   initialMessages: ChatMessage[];
 };
 
-export const ChatClient = ({
-  starterPrompts,
-  initialMessages,
-}: ChatClientProps) => {
+export const ChatClient = ({ initialMessages }: ChatClientProps) => {
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [model, setModel] = useState<string>("openai/gpt-4o-mini");
   const logRef = useRef<HTMLDivElement | null>(null);
+  const pendingAssistantIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setMessages(initialMessages);
@@ -28,16 +25,25 @@ export const ChatClient = ({
 
   useEffect(() => {
     const container = logRef.current;
+    const pendingAssistantId = pendingAssistantIdRef.current;
 
-    if (!container) {
+    if (!container || !pendingAssistantId) {
+      return;
+    }
+
+    const pendingAssistant = container.querySelector<HTMLElement>(
+      `[data-message-id="${pendingAssistantId}"]`,
+    );
+
+    if (!pendingAssistant) {
       return;
     }
 
     container.scrollTo({
-      top: container.scrollHeight,
+      top: Math.max(0, pendingAssistant.offsetTop - 16),
       behavior: "smooth",
     });
-  }, [messages, isPending]);
+  }, [messages]);
 
   const sendMessage = (rawMessage: string) => {
     const content = rawMessage.trim();
@@ -46,9 +52,29 @@ export const ChatClient = ({
       return;
     }
 
+    const previousMessages = messages;
+    const optimisticUserMessage: ChatMessage = {
+      id: `optimistic-user-${crypto.randomUUID()}`,
+      role: "user",
+      content,
+      createdAt: new Date().toISOString(),
+    };
+    const optimisticAssistantMessage: ChatMessage = {
+      id: `optimistic-assistant-${crypto.randomUUID()}`,
+      role: "assistant",
+      content: "Thinking through the request...",
+      createdAt: new Date().toISOString(),
+    };
+
     setDraft("");
     setError(null);
     setIsPending(true);
+    pendingAssistantIdRef.current = optimisticAssistantMessage.id;
+    setMessages([
+      ...previousMessages,
+      optimisticUserMessage,
+      optimisticAssistantMessage,
+    ]);
 
     startTransition(async () => {
       try {
@@ -62,8 +88,10 @@ export const ChatClient = ({
             : "Something went wrong while generating a reply.";
 
         setError(message);
+        setMessages(previousMessages);
         setDraft(content);
       } finally {
+        pendingAssistantIdRef.current = null;
         setIsPending(false);
       }
     });
@@ -118,22 +146,6 @@ export const ChatClient = ({
           <p className={styles.sidebarLabel}>Model</p>
           <p className={styles.sidebarValue}>{model}</p>
         </div>
-        <div className={styles.sidebarPanel}>
-          <p className={styles.sidebarLabel}>Quick starts</p>
-          <div className={styles.quickStarts}>
-            {starterPrompts.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                className={styles.quickStart}
-                onClick={() => sendMessage(prompt)}
-                disabled={isPending}
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className={styles.chatFrame}>
@@ -155,25 +167,21 @@ export const ChatClient = ({
           </div>
         </div>
 
-        <div className={styles.chatLog} ref={logRef}>
-          {messages.map((message) => (
-            <article
-              key={message.id}
-              className={
-                message.role === "user" ? styles.userMessage : styles.assistantMessage
-              }
-            >
-              <p className={styles.messageRole}>{message.role}</p>
-              <p className={styles.messageBody}>{message.content}</p>
-            </article>
-          ))}
-
-          {isPending ? (
-            <article className={styles.assistantMessage}>
-              <p className={styles.messageRole}>assistant</p>
-              <p className={styles.messageBody}>Thinking through the request...</p>
-            </article>
-          ) : null}
+        <div className={styles.chatLogFrame}>
+          <div className={styles.chatLog} ref={logRef}>
+            {messages.map((message) => (
+              <article
+                key={message.id}
+                data-message-id={message.id}
+                className={
+                  message.role === "user" ? styles.userMessage : styles.assistantMessage
+                }
+              >
+                <p className={styles.messageRole}>{message.role}</p>
+                <p className={styles.messageBody}>{message.content}</p>
+              </article>
+            ))}
+          </div>
         </div>
 
         <form className={styles.composer} onSubmit={onSubmit}>

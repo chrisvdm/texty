@@ -1,6 +1,6 @@
-# Texty AI
+# Texty
 
-Custom AI chat app built with RedwoodSDK and the OpenRouter API.
+Chat app built with RedwoodSDK and the OpenRouter API.
 
 ## Setup
 
@@ -16,7 +16,7 @@ npm install
 OPENROUTER_API_KEY=your_openrouter_key
 OPENROUTER_MODEL=openai/gpt-4o-mini
 OPENROUTER_SITE_URL=http://localhost:5173
-OPENROUTER_SITE_NAME=Texty AI
+OPENROUTER_SITE_NAME=Texty
 ```
 
 3. Start the app:

@@ -66,7 +66,7 @@ const generateAssistantReply = async (messages: ChatMessage[]) => {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "HTTP-Referer": env.OPENROUTER_SITE_URL || "http://localhost:5173",
-        "X-Title": env.OPENROUTER_SITE_NAME || "Texty AI",
+        "X-Title": env.OPENROUTER_SITE_NAME || "Texty",
       },
       body: JSON.stringify({
         model: env.OPENROUTER_MODEL || DEFAULT_MODEL,
