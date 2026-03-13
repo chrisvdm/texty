@@ -6,6 +6,7 @@ import {
   createEmptyGlobalMemory,
   createThreadSummary,
   normalizeGlobalMemory,
+  normalizeThreadSummaries,
   type ChatThreadSummary,
   type GlobalMemory,
 } from "../chat/shared";
@@ -37,6 +38,7 @@ export const normalizeBrowserSession = (
   if (isBrowserSession(session)) {
     return {
       ...session,
+      threads: normalizeThreadSummaries(session.threads),
       globalMemory: normalizeGlobalMemory(session.globalMemory),
     };
   }

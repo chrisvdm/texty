@@ -11,6 +11,7 @@ import {
 } from "./chat.storage";
 import {
   MAX_CONTEXT_MESSAGES,
+  buildGlobalMemoryMarkdown,
   createAssistantMessage,
   createEmptyGlobalMemory,
   createInitialChatState,
@@ -89,7 +90,9 @@ const buildThreadSummary = (
   messages: ChatMessage[],
 ) => ({
   ...currentSummary,
-  title: getThreadTitleFromMessages(messages),
+  title: currentSummary.isTitleEdited
+    ? currentSummary.title
+    : getThreadTitleFromMessages(messages),
   updatedAt: messages.at(-1)?.createdAt || currentSummary.updatedAt,
   messageCount: messages.length,
 });
@@ -106,7 +109,11 @@ const formatThreadState = (
   ...(model ? { model } : {}),
 });
 
-const createAndPersistThread = async () => {
+const createAndPersistThread = async ({
+  isTemporary = false,
+}: {
+  isTemporary?: boolean;
+} = {}) => {
   const currentSession = requireBrowserSession();
   const nextThreadId = crypto.randomUUID();
   const nextThreadState = createInitialChatState();
@@ -117,7 +124,9 @@ const createAndPersistThread = async () => {
     ...currentSession,
     activeThreadId: nextThreadId,
     threads: [
-      createThreadSummary(nextThreadId, nextThreadState.messages.length),
+      createThreadSummary(nextThreadId, nextThreadState.messages.length, {
+        isTemporary,
+      }),
       ...currentSession.threads,
     ],
   };
@@ -198,15 +207,44 @@ const generateAssistantReply = async ({
 };
 
 export const sendChatMessage = serverQuery(
-  async (rawMessage: string) => {
+  async ({
+    content: rawMessage,
+    threadId,
+  }: {
+    content: string;
+    threadId: string;
+  }) => {
     const content = rawMessage.trim();
+    const sessionId = threadId.trim();
+
+    if (!sessionId) {
+      throw new Error("Choose a thread before sending a message.");
+    }
 
     if (!content) {
       throw new Error("Please enter a message before sending.");
     }
 
-    const sessionId = requireChatSessionId();
     const browserSession = requireBrowserSession();
+    const threadExists = browserSession.threads.some(
+      (thread) => thread.id === sessionId,
+    );
+
+    if (!threadExists) {
+      throw new Error("That thread is no longer available.");
+    }
+
+    const currentSummary = browserSession.threads.find(
+      (thread) => thread.id === sessionId,
+    );
+
+    if (!currentSummary) {
+      throw new Error("The active thread could not be found.");
+    }
+
+    const memoryScope = currentSummary.isTemporary
+      ? createEmptyGlobalMemory()
+      : browserSession.globalMemory;
     const currentState = await loadChatSession(sessionId);
     const withUserMessage = {
       messages: [...currentState.messages, createUserMessage(content)],
@@ -220,7 +258,7 @@ export const sendChatMessage = serverQuery(
         userMessage: content,
         messages: currentState.messages,
         threadMemory: currentState.memory,
-        globalMemory: browserSession.globalMemory,
+        globalMemory: memoryScope,
       });
       const reply = await generateAssistantReply({
         messages: withUserMessage.messages,
@@ -241,30 +279,25 @@ export const sendChatMessage = serverQuery(
           threadId: sessionId,
           messages: nextState.messages,
           previousThreadMemory: currentState.memory,
-          globalMemory: browserSession.globalMemory,
+          globalMemory: memoryScope,
         });
 
         finalState = {
           ...nextState,
           memory: refreshedMemories.threadMemory,
         };
-        nextGlobalMemory = refreshedMemories.globalMemory;
+        nextGlobalMemory = currentSummary.isTemporary
+          ? browserSession.globalMemory
+          : refreshedMemories.globalMemory;
 
         await saveChatSession(sessionId, finalState);
       } catch (memoryError) {
         console.warn("Unable to refresh chat memory", memoryError);
       }
 
-      const currentSummary = browserSession.threads.find(
-        (thread) => thread.id === sessionId,
-      );
-
-      if (!currentSummary) {
-        throw new Error("The active thread could not be found.");
-      }
-
       const nextSession: BrowserSession = {
         ...browserSession,
+        activeThreadId: sessionId,
         globalMemory: nextGlobalMemory,
         threads: updateThreadSummaries(
           browserSession.threads,
@@ -320,7 +353,8 @@ export const resetChatSession = serverQuery(
 );
 
 export const createChatThread = serverQuery(
-  async () => createAndPersistThread(),
+  async ({ isTemporary }: { isTemporary?: boolean } = {}) =>
+    createAndPersistThread({ isTemporary }),
   { method: "POST" },
 );
 
@@ -411,6 +445,74 @@ export const deleteChatThread = serverQuery(
       globalMemory: nextGlobalMemory,
     };
     const threadSession = await loadChatSession(nextActiveThreadId);
+
+    await persistBrowserSession(nextSession);
+
+    return formatThreadState(nextSession, threadSession);
+  },
+  { method: "POST" },
+);
+
+export const renameChatThread = serverQuery(
+  async ({
+    threadId,
+    title,
+  }: {
+    threadId: string;
+    title: string;
+  }) => {
+    const browserSession = requireBrowserSession();
+    const nextThreadId = threadId.trim();
+    const nextTitle = title.trim().slice(0, 80);
+
+    if (!nextThreadId) {
+      throw new Error("Choose a thread before trying to rename it.");
+    }
+
+    if (!nextTitle) {
+      throw new Error("Enter a thread name before saving.");
+    }
+
+    const currentSummary = browserSession.threads.find(
+      (thread) => thread.id === nextThreadId,
+    );
+
+    if (!currentSummary) {
+      throw new Error("That thread is no longer available.");
+    }
+
+    const nextThreads = browserSession.threads.map((thread) =>
+      thread.id === nextThreadId
+        ? {
+            ...thread,
+            title: nextTitle,
+            isTitleEdited: true,
+            updatedAt: new Date().toISOString(),
+          }
+        : thread,
+    );
+    const nextGlobalMemory = {
+      ...browserSession.globalMemory,
+      threadSummaries: browserSession.globalMemory.threadSummaries.map((summary) =>
+        summary.threadId === nextThreadId
+          ? { ...summary, title: nextTitle }
+          : summary,
+      ),
+      markdown: "",
+    };
+    nextGlobalMemory.markdown = buildGlobalMemoryMarkdown({
+      memory: nextGlobalMemory,
+      threadSummaries: nextGlobalMemory.threadSummaries,
+    });
+
+    const nextSession: BrowserSession = {
+      ...browserSession,
+      threads: nextThreads,
+      globalMemory: nextGlobalMemory,
+    };
+    const threadSession = await loadChatSession(
+      browserSession.activeThreadId,
+    );
 
     await persistBrowserSession(nextSession);
 

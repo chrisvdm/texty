@@ -5,6 +5,7 @@ import { startTransition, useEffect, useRef, useState } from "react";
 import {
   createChatThread,
   deleteChatThread,
+  renameChatThread,
   selectChatThread,
   sendChatMessage,
 } from "../chat/chat.service";
@@ -96,7 +97,10 @@ export const ChatClient = ({
 
     startTransition(async () => {
       try {
-        const result = await sendChatMessage(content);
+        const result = await sendChatMessage({
+          content,
+          threadId: activeThreadId,
+        });
         setActiveThreadId(result.activeThreadId);
         setThreads(result.threads);
         setModel(result.model ?? "openai/gpt-4o-mini");
@@ -157,7 +161,7 @@ export const ChatClient = ({
     });
   };
 
-  const addThread = () => {
+  const addThread = (isTemporary = false) => {
     if (isPending) {
       return;
     }
@@ -167,7 +171,7 @@ export const ChatClient = ({
 
     startTransition(async () => {
       try {
-        const nextThread = await createChatThread();
+        const nextThread = await createChatThread({ isTemporary });
         setActiveThreadId(nextThread.activeThreadId);
         setThreads(nextThread.threads);
         setMessages(nextThread.session.messages);
@@ -177,6 +181,48 @@ export const ChatClient = ({
           caughtError instanceof Error
             ? caughtError.message
             : "Unable to create a new thread.",
+        );
+      } finally {
+        pendingAssistantIdRef.current = null;
+        setIsPending(false);
+      }
+    });
+  };
+
+  const editThreadName = (threadId: string) => {
+    if (isPending) {
+      return;
+    }
+
+    const thread = threads.find((entry) => entry.id === threadId);
+
+    if (!thread) {
+      return;
+    }
+
+    const nextTitle = window.prompt("Rename thread", thread.title)?.trim();
+
+    if (!nextTitle || nextTitle === thread.title) {
+      return;
+    }
+
+    setError(null);
+    setIsPending(true);
+
+    startTransition(async () => {
+      try {
+        const nextState = await renameChatThread({
+          threadId,
+          title: nextTitle,
+        });
+        setActiveThreadId(nextState.activeThreadId);
+        setThreads(nextState.threads);
+        setMessages(nextState.session.messages);
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Unable to rename that thread.",
         );
       } finally {
         pendingAssistantIdRef.current = null;
@@ -230,16 +276,24 @@ export const ChatClient = ({
             <div>
               <p className={styles.sidebarLabel}>Threads</p>
               <p className={styles.sidebarHint}>
-                Session-backed conversations you can return to.
+                Session-backed conversations you can return to. Private chats stay isolated from global memory.
               </p>
             </div>
             <button
               type="button"
               className={styles.newThreadButton}
-              onClick={addThread}
+              onClick={() => addThread(false)}
               disabled={isPending}
             >
               New thread
+            </button>
+            <button
+              type="button"
+              className={styles.tempThreadButton}
+              onClick={() => addThread(true)}
+              disabled={isPending}
+            >
+              Private
             </button>
           </div>
           <div className={styles.threadList}>
@@ -262,18 +316,35 @@ export const ChatClient = ({
                   onClick={() => openThread(thread.id)}
                   disabled={isPending}
                 >
-                  <span className={styles.threadTitle}>{thread.title}</span>
+                  <span className={styles.threadTitleRow}>
+                    <span className={styles.threadTitle}>{thread.title}</span>
+                    {thread.isTemporary ? (
+                      <span className={styles.threadBadge}>Private</span>
+                    ) : null}
+                  </span>
                 </button>
-                <button
-                  type="button"
-                  className={styles.deleteThreadButton}
-                  onClick={() => removeThread(thread.id)}
-                  disabled={isPending}
-                  aria-label={`Delete ${thread.title}`}
-                  title="Delete thread"
-                >
-                  Delete
-                </button>
+                <div className={styles.threadActions}>
+                  <button
+                    type="button"
+                    className={styles.renameThreadButton}
+                    onClick={() => editThreadName(thread.id)}
+                    disabled={isPending}
+                    aria-label={`Rename ${thread.title}`}
+                    title="Rename thread"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.deleteThreadButton}
+                    onClick={() => removeThread(thread.id)}
+                    disabled={isPending}
+                    aria-label={`Delete ${thread.title}`}
+                    title="Delete thread"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>

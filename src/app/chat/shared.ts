@@ -64,6 +64,8 @@ export type ChatThreadSummary = {
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  isTemporary: boolean;
+  isTitleEdited: boolean;
 };
 
 export const MAX_CONTEXT_MESSAGES = 6;
@@ -622,17 +624,51 @@ export const createInitialChatState = (): ChatSessionState => ({
 export const createThreadSummary = (
   id: string,
   messageCount = INITIAL_MESSAGE_COUNT,
+  options?: {
+    isTemporary?: boolean;
+    isTitleEdited?: boolean;
+    title?: string;
+  },
 ): ChatThreadSummary => {
   const timestamp = new Date().toISOString();
 
   return {
     id,
-    title: DEFAULT_THREAD_TITLE,
+    title: options?.title ?? DEFAULT_THREAD_TITLE,
     createdAt: timestamp,
     updatedAt: timestamp,
     messageCount,
+    isTemporary: options?.isTemporary ?? false,
+    isTitleEdited: options?.isTitleEdited ?? false,
   };
 };
+
+export const normalizeThreadSummary = (
+  summary: Partial<ChatThreadSummary> & Pick<ChatThreadSummary, "id">,
+): ChatThreadSummary => ({
+  id: summary.id,
+  title: summary.title ?? DEFAULT_THREAD_TITLE,
+  createdAt: summary.createdAt ?? new Date().toISOString(),
+  updatedAt: summary.updatedAt ?? summary.createdAt ?? new Date().toISOString(),
+  messageCount: summary.messageCount ?? INITIAL_MESSAGE_COUNT,
+  isTemporary: summary.isTemporary ?? false,
+  isTitleEdited: summary.isTitleEdited ?? false,
+});
+
+export const normalizeThreadSummaries = (
+  summaries: ChatThreadSummary[],
+): ChatThreadSummary[] =>
+  summaries.every(
+    (summary) =>
+      typeof summary.title === "string" &&
+      typeof summary.createdAt === "string" &&
+      typeof summary.updatedAt === "string" &&
+      typeof summary.messageCount === "number" &&
+      typeof summary.isTemporary === "boolean" &&
+      typeof summary.isTitleEdited === "boolean",
+  )
+    ? summaries
+    : summaries.map(normalizeThreadSummary);
 
 export const getThreadTitleFromMessages = (messages: ChatMessage[]) => {
   const firstUserMessage = messages.find((message) => message.role === "user");
