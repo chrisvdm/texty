@@ -31,6 +31,10 @@
       {
         "name": "CHAT_SESSIONS",
         "class_name": "ChatSessionDurableObject"
+      },
+      {
+        "name": "PROVIDER_USER_CONTEXTS",
+        "class_name": "ProviderUserContextDurableObject"
       }
     ]
   },
@@ -43,6 +47,10 @@
     {
       "tag": "v2",
       "new_sqlite_classes": ["BrowserSessionDurableObject"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["ProviderUserContextDurableObject"]
     }
   ],
 

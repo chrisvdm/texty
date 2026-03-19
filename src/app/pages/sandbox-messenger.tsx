@@ -3,20 +3,29 @@ import type { ChatMessage, ChatThreadSummary } from "../chat/shared";
 import type { BrowserSession } from "../session/session";
 import { SandboxMessengerClient } from "./sandbox-messenger.client";
 
+const requireSession = (session: BrowserSession | undefined) => {
+  if (!session) {
+    throw new Error("Browser session is required for this page.");
+  }
+
+  return session;
+};
+
 export const SandboxMessenger = async ({
   ctx,
 }: {
-  ctx: { session: BrowserSession };
+  ctx: { session?: BrowserSession };
 }) => {
-  const activeThread = await loadChatSession(ctx.session.activeThreadId);
+  const session = requireSession(ctx.session);
+  const activeThread = await loadChatSession(session.activeThreadId);
   const messages: ChatMessage[] = activeThread.messages;
-  const threads: ChatThreadSummary[] = ctx.session.threads;
+  const threads: ChatThreadSummary[] = session.threads;
 
   return (
     <SandboxMessengerClient
-      activeThreadId={ctx.session.activeThreadId}
+      activeThreadId={session.activeThreadId}
       initialMessages={messages}
-      initialModel={ctx.session.selectedModel}
+      initialModel={session.selectedModel}
       initialThreads={threads}
     />
   );

@@ -8,9 +8,9 @@ Texty should act as the conversational interface and memory layer. External syst
 
 This allows Texty to be reused by multiple execution systems such as:
 
-- Scarymonster
-- Kindling
-- future internal or third-party tool runtimes
+- internal execution systems
+- third-party tool runtimes
+- future provider platforms
 
 This document focuses on the provider API boundary.
 Identity, storage, and memory-policy semantics are defined in `docs/architecture-foundations.md`.
@@ -58,7 +58,7 @@ So when a user asks for something:
 
 Yes.
 
-A provider is a system that exposes tool execution capabilities to Texty. A provider like Scarymonster or Kindling may serve many end users.
+A provider is a system that exposes tool execution capabilities to Texty. One provider may serve many end users.
 
 ### Purpose of `provider_id`
 
@@ -73,8 +73,8 @@ Its purpose is to:
 
 Examples:
 
-- `scarymonster`
-- `kindling`
+- `provider_a`
+- `provider_b`
 
 ### Who is the user?
 
@@ -82,20 +82,20 @@ The user is the human using the provider, not the provider itself.
 
 Examples:
 
-- Chris using Scarymonster
-- Sam using Kindling
+- Chris using Provider A
+- Sam using Provider B
 
 The provider is the application/system.
 The user is the person.
 
 So a valid identity tuple is:
 
-- `provider_id = scarymonster`
+- `provider_id = provider_a`
 - `user_id = chris_123`
 
 This means:
 
-- Scarymonster is the provider
+- Provider A is the provider
 - Chris is the end user
 
 ## Memory Policy
@@ -133,7 +133,7 @@ Example request:
 
 ```json
 {
-  "provider_id": "scarymonster",
+  "provider_id": "provider_a",
   "user_id": "user_123",
   "tools": [
     {
@@ -166,7 +166,7 @@ Example request:
 
 ```json
 {
-  "provider_id": "scarymonster",
+  "provider_id": "provider_a",
   "user_id": "user_123",
   "thread_id": "thread_abc",
   "input": {
@@ -195,7 +195,7 @@ Example request from Texty to the provider:
 ```json
 {
   "execution_id": "exec_123",
-  "provider_id": "scarymonster",
+  "provider_id": "provider_a",
   "user_id": "user_123",
   "tool_name": "spreadsheet.update_row",
   "arguments": {

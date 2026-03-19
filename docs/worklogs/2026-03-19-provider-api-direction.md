@@ -4,7 +4,7 @@
 
 - Document the architectural direction for Texty as a provider-agnostic conversational service.
 - Clarify the identity model between Texty, providers, and end users.
-- Record the intended API boundary between Texty and systems such as Scarymonster and Kindling.
+- Record the intended API boundary between Texty and external execution systems.
 
 ## Completed
 

@@ -6,8 +6,8 @@ Texty is no longer just a browser chat app.
 
 It is becoming a reusable conversational service that can sit in front of multiple execution systems such as:
 
-- Scarymonster
-- Kindling
+- automation backends
+- app-building systems
 - future provider systems
 
 That makes three topics especially important to define clearly:
@@ -58,8 +58,8 @@ A provider is an external system that exposes capabilities to Texty.
 
 Examples:
 
-- Scarymonster
-- Kindling
+- Provider A
+- Provider B
 
 A provider should own:
 
@@ -75,8 +75,8 @@ The user is the human using the provider.
 
 Examples:
 
-- Chris using Scarymonster
-- Sam using Kindling
+- Chris using Provider A
+- Sam using Provider B
 
 The provider is not the user.
 
@@ -91,8 +91,8 @@ The user is the person.
 
 Examples:
 
-- `scarymonster`
-- `kindling`
+- `provider_a`
+- `provider_b`
 
 Its purpose is to:
 
@@ -114,12 +114,12 @@ Examples:
 
 That means this is valid:
 
-- `provider_id = scarymonster`
+- `provider_id = provider_a`
 - `user_id = chris_123`
 
 and this is also valid:
 
-- `provider_id = kindling`
+- `provider_id = provider_b`
 - `user_id = chris_123`
 
 Those may or may not refer to the same human in real life. Texty should not assume they are shared unless explicitly configured.
@@ -132,8 +132,8 @@ That is the normal case.
 
 Examples:
 
-- Scarymonster may have thousands of users
-- Kindling may have thousands of users
+- Provider A may have thousands of users
+- Provider B may have thousands of users
 
 Each user may have:
 
@@ -284,8 +284,8 @@ This is the key separation:
 
 So:
 
-- Kindling may choose to ignore most or all captured memory
-- Scarymonster may choose to use provider-level memory heavily
+- one provider may choose to ignore most or all captured memory
+- another may choose to use provider-level memory heavily
 - another provider may choose to use only thread memory
 - another provider may send its own external retrieved context
 
@@ -310,7 +310,7 @@ Use this when:
 
 Example:
 
-- Kindling running isolated app-building sessions
+- a provider running isolated build or planning sessions
 
 Important:
 
@@ -347,7 +347,7 @@ Use this when:
 
 Example:
 
-- Scarymonster remembering a user’s family, preferences, and recurring operational context across all Scarymonster conversations
+- a provider remembering a user’s family, preferences, and recurring operational context across all of that provider’s conversations
 
 ### `custom_scope`
 
@@ -360,7 +360,7 @@ Use this when:
 
 Example:
 
-- Scarymonster and another integration both point to `memory_scope_id = chris-global`
+- two connected systems both point to `memory_scope_id = chris-global`
 
 This is more flexible, but more dangerous.
 It should be explicit and never assumed.
@@ -391,7 +391,7 @@ Example:
 
 ```json
 {
-  "provider_id": "kindling",
+  "provider_id": "provider_b",
   "user_id": "user_123",
   "memory_policy": {
     "mode": "none"
@@ -403,7 +403,7 @@ Or:
 
 ```json
 {
-  "provider_id": "scarymonster",
+  "provider_id": "provider_a",
   "user_id": "user_123",
   "memory_policy": {
     "mode": "provider_user"
@@ -415,7 +415,7 @@ Or:
 
 ```json
 {
-  "provider_id": "scarymonster",
+  "provider_id": "provider_a",
   "user_id": "user_123",
   "memory_policy": {
     "mode": "custom_scope",
@@ -428,7 +428,7 @@ Or:
 
 ```json
 {
-  "provider_id": "kindling",
+  "provider_id": "provider_b",
   "user_id": "user_123",
   "memory_policy": {
     "mode": "external",
@@ -480,8 +480,8 @@ Texty should:
 
 Start with these defaults:
 
-- Kindling: `none` or `thread`
-- Scarymonster: `provider_user`
+- Provider A: `none` or `thread`
+- Provider B: `provider_user`
 
 Only use `custom_scope` when there is a deliberate reason to share memory across systems.
 

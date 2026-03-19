@@ -15,8 +15,8 @@ Texty should be usable by multiple provider systems, not just one product.
 
 Examples:
 
-- Scarymonster
-- Kindling
+- an automation backend
+- an app-building backend
 
 This means Texty is being designed as a general-purpose conversational front end for tools and workflows, not as a single-purpose browser chat app.
 
@@ -123,8 +123,8 @@ The expected integration model is:
 
 Examples of providers:
 
-- Scarymonster
-- Kindling
+- an automation backend
+- an app-building backend
 
 Identity, storage, and memory-policy details for that provider model are defined in `docs/architecture-foundations.md`.
 

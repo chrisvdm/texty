@@ -9,6 +9,8 @@ import { setCommonHeaders } from "@/app/headers";
 import { Debug } from "@/app/pages/debug";
 import { Home } from "@/app/pages/home";
 import { SandboxMessenger } from "@/app/pages/sandbox-messenger";
+import { providerRoutes } from "@/app/provider/provider.routes";
+import { ProviderUserContextDurableObject } from "@/app/provider/provider-user-context-do";
 import { BrowserSessionDurableObject } from "@/app/session/browser-session-do";
 import {
   browserSessionStore,
@@ -18,12 +20,18 @@ import {
 } from "@/app/session/session";
 
 export type AppContext = {
-  session: BrowserSession;
+  session?: BrowserSession;
 };
 
 export default defineApp([
   setCommonHeaders(),
   async ({ request, response, ctx }) => {
+    const pathname = new URL(request.url).pathname;
+
+    if (pathname.startsWith("/api/v1/")) {
+      return;
+    }
+
     const existingSession = await browserSessionStore.load(request);
 
     if (existingSession) {
@@ -52,6 +60,7 @@ export default defineApp([
 
     ctx.session = session;
   },
+  ...providerRoutes,
   render(Document, [
     route("/", Home),
     route("/debug", Debug),
@@ -59,4 +68,8 @@ export default defineApp([
   ]),
 ]);
 
-export { BrowserSessionDurableObject, ChatSessionDurableObject };
+export {
+  BrowserSessionDurableObject,
+  ChatSessionDurableObject,
+  ProviderUserContextDurableObject,
+};
