@@ -34,12 +34,14 @@ Right now it includes:
 
 - a web chat interface
 - a sandbox messenger interface
+- a provider API sandbox
 - multi-thread conversation history
 - lightweight memory
 - command-based thread controls
+- a provider-aware conversation API
 - a shared conversation core that is being extracted away from the UI
 
-It does not yet expose the full provider-facing HTTP API described in the architecture docs.
+It is still an MVP slice of the larger service direction, but it now includes the first provider-facing HTTP API.
 
 ### Project Docs
 
@@ -77,6 +79,77 @@ npm run dev
 ```
 
 For deployment, set `OPENROUTER_API_KEY` as a Wrangler secret and keep the other values in Wrangler vars if you want to override the defaults. Chat history is now stored per browser session in a Durable Object and survives page refreshes.
+
+### Provider Setup
+
+Texty expects provider requests to use bearer-token authentication.
+
+For local development, configure provider tokens in `.dev.vars`:
+
+```shell
+TEXTY_PROVIDER_CONFIG='{"provider_a":{"token":"dev-token"}}'
+```
+
+This lets a provider authenticate requests with:
+
+```shell
+Authorization: Bearer dev-token
+```
+
+If a provider also needs Texty to call back into it for tool execution, include a base URL:
+
+```shell
+TEXTY_PROVIDER_CONFIG='{"provider_a":{"token":"dev-token","baseUrl":"https://provider.example"}}'
+```
+
+### Channel Use
+
+Channels are the surfaces people talk through, such as web chat, messaging, email, or a voice-note transcript pipeline.
+
+Every conversation request should include:
+
+- `provider_id`
+- `user_id`
+- `channel.type`
+- `channel.id`
+
+The channel is used to keep recent thread continuity. If a request does not include `thread_id`, Texty first checks the most recent thread for that channel. If the new message fits that thread, it continues it. Otherwise, Texty infers a better thread or starts a new one.
+
+Normal conversations are captured into memory by default. Private threads are the exception and are excluded from shared-memory capture.
+
+### Provider Use
+
+Providers are the systems that connect users and capabilities to Texty.
+
+In the current MVP, a provider can:
+
+- sync allowed tools for a provider/user pair
+- send normalized conversation input into Texty
+- create, list, rename, and delete threads
+- read shared memory for a provider/user pair
+- read thread memory for a specific thread
+
+The main routes are:
+
+- `POST /api/v1/providers/:providerId/users/:userId/tools/sync`
+- `POST /api/v1/conversation/input`
+- `POST /api/v1/threads`
+- `GET /api/v1/providers/:providerId/users/:userId/threads`
+- `PATCH /api/v1/threads/:threadId`
+- `DELETE /api/v1/threads/:threadId`
+- `GET /api/v1/providers/:providerId/users/:userId/memory`
+- `GET /api/v1/threads/:threadId/memory?provider_id=...&user_id=...`
+
+See `docs/provider-api-spec.md` for the request and response shapes.
+
+### Sandbox Routes
+
+For local testing:
+
+- `/` is the main web channel client
+- `/sandbox/messenger` is the phone-style message simulator
+- `/sandbox/provider` is the provider API harness
+- `/debug` shows stored memory state
 
 ## Scripts
 

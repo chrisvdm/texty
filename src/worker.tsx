@@ -9,6 +9,7 @@ import { setCommonHeaders } from "@/app/headers";
 import { Debug } from "@/app/pages/debug";
 import { Home } from "@/app/pages/home";
 import { SandboxMessenger } from "@/app/pages/sandbox-messenger";
+import { SandboxProvider } from "@/app/pages/sandbox-provider";
 import { providerRoutes } from "@/app/provider/provider.routes";
 import { ProviderUserContextDurableObject } from "@/app/provider/provider-user-context-do";
 import { BrowserSessionDurableObject } from "@/app/session/browser-session-do";
@@ -65,6 +66,7 @@ export default defineApp([
     route("/", Home),
     route("/debug", Debug),
     route("/sandbox/messenger", SandboxMessenger),
+    route("/sandbox/provider", SandboxProvider),
   ]),
 ]);
 

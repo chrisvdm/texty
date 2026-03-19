@@ -35,6 +35,7 @@ import type {
   ProviderToolSyncInput,
   ProviderUserContext,
 } from "./provider.types";
+import { logProviderAudit } from "./provider.audit";
 import {
   loadOrCreateProviderUserContext,
   saveProviderUserContext,
@@ -645,6 +646,16 @@ export const syncProviderTools = async (input: ProviderToolSyncInput) => {
 
   await saveProviderUserContext(nextContext);
 
+  logProviderAudit({
+    event: "provider.tools.synced",
+    providerId: input.provider_id,
+    userId: input.user_id,
+    status: "ok",
+    metadata: {
+      syncedTools: nextContext.allowedTools.length,
+    },
+  });
+
   return {
     provider_id: input.provider_id,
     user_id: input.user_id,
@@ -710,6 +721,19 @@ export const createProviderThread = async ({
     await saveProviderUserContext(nextContext);
   }
 
+  logProviderAudit({
+    event: "provider.thread.created",
+    providerId,
+    userId,
+    threadId: created.threadId,
+    channelType: channel.type,
+    channelId: channel.id,
+    status: "ok",
+    metadata: {
+      isPrivate: Boolean(isPrivate),
+    },
+  });
+
   return {
     thread_id: created.threadId,
     title: title?.trim() || getThreadTitleFromMessages(created.session.messages),
@@ -770,6 +794,14 @@ export const renameProviderThread = async ({
 
   await saveProviderUserContext(nextContext);
 
+  logProviderAudit({
+    event: "provider.thread.renamed",
+    providerId,
+    userId,
+    threadId,
+    status: "ok",
+  });
+
   return {
     thread_id: threadId,
     title: nextTitle,
@@ -810,6 +842,14 @@ export const deleteProviderThread = async ({
   };
 
   await saveProviderUserContext(nextContext);
+
+  logProviderAudit({
+    event: "provider.thread.deleted",
+    providerId,
+    userId,
+    threadId,
+    status: "ok",
+  });
 
   return {
     thread_id: threadId,
@@ -951,6 +991,16 @@ export const handleProviderConversationInput = async ({
     throw new Error("Input text is required.");
   }
 
+  logProviderAudit({
+    event: "provider.conversation.received",
+    providerId: input.provider_id,
+    userId: input.user_id,
+    threadId: input.thread_id,
+    channelType: input.channel.type,
+    channelId: input.channel.id,
+    status: "ok",
+  });
+
   let threadId = await resolveThreadId({
     context,
     providedThreadId: input.thread_id,
@@ -1032,6 +1082,18 @@ export const handleProviderConversationInput = async ({
     assistantContent = execution.message;
     action = "tool_call";
     executionState = execution.state;
+
+    logProviderAudit({
+      event: "provider.tool.executed",
+      providerId: input.provider_id,
+      userId: input.user_id,
+      threadId,
+      status: execution.state === "failed" ? "error" : "ok",
+      metadata: {
+        toolName: decision.tool_name,
+        executionState: execution.state,
+      },
+    });
   }
 
   const withAssistant = await appendMessagesToThread({
@@ -1064,6 +1126,20 @@ export const handleProviderConversationInput = async ({
       channel: input.channel,
       threadId,
     }),
+  });
+
+  logProviderAudit({
+    event: "provider.conversation.completed",
+    providerId: input.provider_id,
+    userId: input.user_id,
+    threadId,
+    channelType: input.channel.type,
+    channelId: input.channel.id,
+    status: "ok",
+    metadata: {
+      action,
+      executionState: executionState ?? null,
+    },
   });
 
   return {
