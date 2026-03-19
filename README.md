@@ -142,6 +142,105 @@ The main routes are:
 
 See `docs/provider-api-spec.md` for the request and response shapes.
 
+### API Usage
+
+The provider API is the main way to use Texty outside the built-in web channels.
+
+At minimum, a provider should:
+
+1. authenticate with a bearer token
+2. optionally sync allowed tools for a provider/user pair
+3. send normalized conversation input
+4. manage threads if it wants explicit thread control
+
+Example tool sync:
+
+```shell
+curl -X POST http://localhost:5173/api/v1/providers/provider_a/users/user_123/tools/sync \
+  -H "Authorization: Bearer dev-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider_id": "provider_a",
+    "user_id": "user_123",
+    "tools": [
+      {
+        "tool_name": "spreadsheet.update_row",
+        "description": "Update a spreadsheet row",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "sheet": { "type": "string" },
+            "row_id": { "type": "string" },
+            "values": { "type": "object" }
+          },
+          "required": ["sheet", "row_id", "values"]
+        },
+        "policy": {
+          "confirmation": "required"
+        },
+        "status": "active"
+      }
+    ]
+  }'
+```
+
+Example conversation input:
+
+```shell
+curl -X POST http://localhost:5173/api/v1/conversation/input \
+  -H "Authorization: Bearer dev-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider_id": "provider_a",
+    "user_id": "user_123",
+    "input": {
+      "kind": "text",
+      "text": "Update the client spreadsheet and mark Acme as contacted"
+    },
+    "channel": {
+      "type": "email",
+      "id": "chris@example.com"
+    },
+    "context": {
+      "external_memories": []
+    }
+  }'
+```
+
+Example create thread:
+
+```shell
+curl -X POST http://localhost:5173/api/v1/threads \
+  -H "Authorization: Bearer dev-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider_id": "provider_a",
+    "user_id": "user_123",
+    "title": "Project planning",
+    "is_private": false,
+    "channel": {
+      "type": "web",
+      "id": "browser_abc"
+    }
+  }'
+```
+
+Example list threads:
+
+```shell
+curl http://localhost:5173/api/v1/providers/provider_a/users/user_123/threads \
+  -H "Authorization: Bearer dev-token"
+```
+
+Example read shared memory:
+
+```shell
+curl http://localhost:5173/api/v1/providers/provider_a/users/user_123/memory \
+  -H "Authorization: Bearer dev-token"
+```
+
+If you want a browser UI for exercising the same routes, use `/sandbox/provider`.
+
 ### Sandbox Routes
 
 For local testing:
