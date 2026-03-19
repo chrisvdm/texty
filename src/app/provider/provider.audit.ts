@@ -1,5 +1,6 @@
 type ProviderAuditEvent = {
   event: string;
+  requestId?: string;
   providerId?: string;
   userId?: string;
   threadId?: string;

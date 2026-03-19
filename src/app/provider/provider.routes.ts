@@ -17,25 +17,65 @@ import type {
   ProviderToolSyncInput,
 } from "./provider.types";
 
-const jsonError = ({
-  status,
-  code,
-  message,
+const getRequestId = (request: Request) =>
+  request.headers.get("X-Request-Id")?.trim() || crypto.randomUUID();
+
+const jsonResponse = ({
+  requestId,
+  body,
+  status = 200,
+  retryAfterSeconds,
 }: {
-  status: number;
-  code: string;
-  message: string;
+  requestId: string;
+  body: Record<string, unknown>;
+  status?: number;
+  retryAfterSeconds?: number;
 }) =>
   Response.json(
     {
+      ...body,
+      request_id: requestId,
+    },
+    {
+      status,
+      headers: {
+        "X-Request-Id": requestId,
+        ...(typeof retryAfterSeconds === "number"
+          ? {
+              "Retry-After": String(retryAfterSeconds),
+            }
+          : {}),
+      },
+    },
+  );
+
+const jsonError = ({
+  requestId,
+  status,
+  code,
+  message,
+  details = null,
+  retryAfterSeconds,
+}: {
+  requestId: string;
+  status: number;
+  code: string;
+  message: string;
+  details?: unknown;
+  retryAfterSeconds?: number;
+}) =>
+  jsonResponse({
+    requestId,
+    status,
+    retryAfterSeconds,
+    body: {
       error: {
         code,
         message,
-        details: null,
+        details,
       },
     },
-    { status },
-  );
+  });
 
 const readJson = async <T,>(request: Request) => {
   try {
@@ -49,8 +89,11 @@ export const providerRoutes = [
   route(
     "/api/v1/providers/:providerId/users/:userId/tools/sync",
     async ({ request, params }) => {
+      const requestId = getRequestId(request);
+
       if (request.method !== "POST") {
         return jsonError({
+          requestId,
           status: 405,
           code: "method_not_allowed",
           message: "Method not allowed.",
@@ -60,10 +103,12 @@ export const providerRoutes = [
       const auth = authenticateProviderRequest({
         request,
         providerId: params.providerId,
+        requestId,
       });
 
       if (!auth.ok) {
         return jsonError({
+          requestId,
           status: auth.status,
           code: auth.error.code,
           message: auth.error.message,
@@ -78,16 +123,21 @@ export const providerRoutes = [
           input.user_id !== params.userId
         ) {
           return jsonError({
+            requestId,
             status: 403,
             code: "forbidden",
             message: "Provider or user mismatch.",
           });
         }
 
-        const result = await syncProviderTools(input);
-        return Response.json(result);
+        const result = await syncProviderTools(input, requestId);
+        return jsonResponse({
+          requestId,
+          body: result as unknown as Record<string, unknown>,
+        });
       } catch (error) {
         return jsonError({
+          requestId,
           status: 400,
           code: "invalid_request",
           message:
@@ -97,8 +147,11 @@ export const providerRoutes = [
     },
   ),
   route("/api/v1/conversation/input", async ({ request }) => {
+    const requestId = getRequestId(request);
+
     if (request.method !== "POST") {
       return jsonError({
+        requestId,
         status: 405,
         code: "method_not_allowed",
         message: "Method not allowed.",
@@ -110,10 +163,12 @@ export const providerRoutes = [
       const auth = authenticateProviderRequest({
         request,
         providerId: input.provider_id,
+        requestId,
       });
 
       if (!auth.ok) {
         return jsonError({
+          requestId,
           status: auth.status,
           code: auth.error.code,
           message: auth.error.message,
@@ -123,30 +178,28 @@ export const providerRoutes = [
       const result = await handleProviderConversationInput({
         input,
         providerConfig: auth.providerConfig,
+        requestId,
       });
-      return Response.json(result);
+      return jsonResponse({
+        requestId,
+        body: result as unknown as Record<string, unknown>,
+      });
     } catch (error) {
       if (isProviderRateLimitError(error)) {
-        return Response.json(
-          {
-            error: {
-              code: "rate_limited",
-              message: "Too many conversation requests. Try again shortly.",
-              details: {
-                retry_after_seconds: error.retryAfterSeconds,
-              },
-            },
+        return jsonError({
+          requestId,
+          status: 429,
+          code: "rate_limited",
+          message: "Too many conversation requests. Try again shortly.",
+          details: {
+            retry_after_seconds: error.retryAfterSeconds,
           },
-          {
-            status: 429,
-            headers: {
-              "Retry-After": String(error.retryAfterSeconds),
-            },
-          },
-        );
+          retryAfterSeconds: error.retryAfterSeconds,
+        });
       }
 
       return jsonError({
+        requestId,
         status: 400,
         code: "invalid_request",
         message:
@@ -155,8 +208,11 @@ export const providerRoutes = [
     }
   }),
   route("/api/v1/threads", async ({ request }) => {
+    const requestId = getRequestId(request);
+
     if (request.method !== "POST") {
       return jsonError({
+        requestId,
         status: 405,
         code: "method_not_allowed",
         message: "Method not allowed.",
@@ -177,10 +233,12 @@ export const providerRoutes = [
       const auth = authenticateProviderRequest({
         request,
         providerId: input.provider_id,
+        requestId,
       });
 
       if (!auth.ok) {
         return jsonError({
+          requestId,
           status: auth.status,
           code: auth.error.code,
           message: auth.error.message,
@@ -193,11 +251,16 @@ export const providerRoutes = [
         title: input.title,
         isPrivate: input.is_private,
         channel: input.channel,
+        requestId,
       });
 
-      return Response.json(result);
+      return jsonResponse({
+        requestId,
+        body: result as unknown as Record<string, unknown>,
+      });
     } catch (error) {
       return jsonError({
+        requestId,
         status: 400,
         code: "invalid_request",
         message:
@@ -208,8 +271,11 @@ export const providerRoutes = [
   route(
     "/api/v1/providers/:providerId/users/:userId/threads",
     async ({ request, params }) => {
+      const requestId = getRequestId(request);
+
       if (request.method !== "GET") {
         return jsonError({
+          requestId,
           status: 405,
           code: "method_not_allowed",
           message: "Method not allowed.",
@@ -219,10 +285,12 @@ export const providerRoutes = [
       const auth = authenticateProviderRequest({
         request,
         providerId: params.providerId,
+        requestId,
       });
 
       if (!auth.ok) {
         return jsonError({
+          requestId,
           status: auth.status,
           code: auth.error.code,
           message: auth.error.message,
@@ -234,9 +302,13 @@ export const providerRoutes = [
           providerId: params.providerId,
           userId: params.userId,
         });
-        return Response.json(result);
+        return jsonResponse({
+          requestId,
+          body: result as unknown as Record<string, unknown>,
+        });
       } catch (error) {
         return jsonError({
+          requestId,
           status: 400,
           code: "invalid_request",
           message:
@@ -246,8 +318,11 @@ export const providerRoutes = [
     },
   ),
   route("/api/v1/threads/:threadId", async ({ request, params }) => {
+    const requestId = getRequestId(request);
+
     if (request.method !== "PATCH" && request.method !== "DELETE") {
       return jsonError({
+        requestId,
         status: 405,
         code: "method_not_allowed",
         message: "Method not allowed.",
@@ -263,10 +338,12 @@ export const providerRoutes = [
       const auth = authenticateProviderRequest({
         request,
         providerId: input.provider_id,
+        requestId,
       });
 
       if (!auth.ok) {
         return jsonError({
+          requestId,
           status: auth.status,
           code: auth.error.code,
           message: auth.error.message,
@@ -279,20 +356,29 @@ export const providerRoutes = [
           userId: input.user_id,
           threadId: params.threadId,
           title: input.title ?? "",
+          requestId,
         });
 
-        return Response.json(result);
+        return jsonResponse({
+          requestId,
+          body: result as unknown as Record<string, unknown>,
+        });
       }
 
       const result = await deleteProviderThread({
         providerId: input.provider_id,
         userId: input.user_id,
         threadId: params.threadId,
+        requestId,
       });
 
-      return Response.json(result);
+      return jsonResponse({
+        requestId,
+        body: result as unknown as Record<string, unknown>,
+      });
     } catch (error) {
       return jsonError({
+        requestId,
         status: 400,
         code: "invalid_request",
         message:
@@ -303,8 +389,11 @@ export const providerRoutes = [
   route(
     "/api/v1/providers/:providerId/users/:userId/memory",
     async ({ request, params }) => {
+      const requestId = getRequestId(request);
+
       if (request.method !== "GET") {
         return jsonError({
+          requestId,
           status: 405,
           code: "method_not_allowed",
           message: "Method not allowed.",
@@ -314,10 +403,12 @@ export const providerRoutes = [
       const auth = authenticateProviderRequest({
         request,
         providerId: params.providerId,
+        requestId,
       });
 
       if (!auth.ok) {
         return jsonError({
+          requestId,
           status: auth.status,
           code: auth.error.code,
           message: auth.error.message,
@@ -329,9 +420,13 @@ export const providerRoutes = [
           providerId: params.providerId,
           userId: params.userId,
         });
-        return Response.json(result);
+        return jsonResponse({
+          requestId,
+          body: result as unknown as Record<string, unknown>,
+        });
       } catch (error) {
         return jsonError({
+          requestId,
           status: 400,
           code: "invalid_request",
           message:
@@ -341,8 +436,11 @@ export const providerRoutes = [
     },
   ),
   route("/api/v1/threads/:threadId/memory", async ({ request, params }) => {
+    const requestId = getRequestId(request);
+
     if (request.method !== "GET") {
       return jsonError({
+        requestId,
         status: 405,
         code: "method_not_allowed",
         message: "Method not allowed.",
@@ -361,10 +459,12 @@ export const providerRoutes = [
       const auth = authenticateProviderRequest({
         request,
         providerId,
+        requestId,
       });
 
       if (!auth.ok) {
         return jsonError({
+          requestId,
           status: auth.status,
           code: auth.error.code,
           message: auth.error.message,
@@ -377,9 +477,13 @@ export const providerRoutes = [
         threadId: params.threadId,
       });
 
-      return Response.json(result);
+      return jsonResponse({
+        requestId,
+        body: result as unknown as Record<string, unknown>,
+      });
     } catch (error) {
       return jsonError({
+        requestId,
         status: 400,
         code: "invalid_request",
         message:

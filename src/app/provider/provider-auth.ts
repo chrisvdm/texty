@@ -44,15 +44,18 @@ const getBearerToken = (request: Request) => {
 export const authenticateProviderRequest = ({
   request,
   providerId,
+  requestId,
 }: {
   request: Request;
   providerId: string;
+  requestId?: string;
 }) => {
   const token = getBearerToken(request);
 
   if (!token) {
     logProviderAudit({
       event: "provider.auth.failed",
+      requestId,
       providerId,
       status: "error",
       code: "unauthenticated",
@@ -74,6 +77,7 @@ export const authenticateProviderRequest = ({
   if (!providerConfig) {
     logProviderAudit({
       event: "provider.auth.failed",
+      requestId,
       providerId,
       status: "error",
       code: "forbidden",
@@ -92,6 +96,7 @@ export const authenticateProviderRequest = ({
   if (providerConfig.token !== token) {
     logProviderAudit({
       event: "provider.auth.failed",
+      requestId,
       providerId,
       status: "error",
       code: "forbidden",
@@ -109,6 +114,7 @@ export const authenticateProviderRequest = ({
 
   logProviderAudit({
     event: "provider.auth.succeeded",
+    requestId,
     providerId,
     status: "ok",
   });

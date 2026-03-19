@@ -195,6 +195,7 @@ Example conversation input:
 ```shell
 curl -X POST http://localhost:5173/api/v1/conversation/input \
   -H "Authorization: Bearer dev-token" \
+  -H "X-Request-Id: req-123" \
   -H "Content-Type: application/json" \
   -d '{
     "provider_id": "provider_a",
@@ -246,6 +247,8 @@ curl http://localhost:5173/api/v1/providers/provider_a/users/user_123/memory \
 ```
 
 If you want a browser UI for exercising the same routes, use `/sandbox/provider`.
+
+Provider API responses now echo a `request_id` field and set an `X-Request-Id` response header. If you send your own `X-Request-Id`, Texty reuses it; otherwise Texty generates one for you.
 
 Tool execution states currently recognized by Texty are:
 

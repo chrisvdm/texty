@@ -505,6 +505,7 @@ const executeProviderTool = async ({
   threadId,
   toolName,
   args,
+  requestId,
 }: {
   providerConfig: ProviderConfig;
   providerId: string;
@@ -512,6 +513,7 @@ const executeProviderTool = async ({
   threadId: string;
   toolName: string;
   args: Record<string, unknown>;
+  requestId?: string;
 }) => {
   if (!providerConfig.baseUrl) {
     throw new Error("Provider base URL is not configured.");
@@ -531,6 +533,7 @@ const executeProviderTool = async ({
       tool_name: toolName,
       arguments: args,
       context: {
+        request_id: requestId ?? crypto.randomUUID(),
         thread_id: threadId,
       },
     }),
@@ -657,7 +660,10 @@ const refreshProviderMemories = async ({
   }
 };
 
-export const syncProviderTools = async (input: ProviderToolSyncInput) => {
+export const syncProviderTools = async (
+  input: ProviderToolSyncInput,
+  requestId?: string,
+) => {
   const context = await loadOrCreateProviderUserContext({
     providerId: input.provider_id,
     userId: input.user_id,
@@ -678,6 +684,7 @@ export const syncProviderTools = async (input: ProviderToolSyncInput) => {
 
   logProviderAudit({
     event: "provider.tools.synced",
+    requestId,
     providerId: input.provider_id,
     userId: input.user_id,
     status: "ok",
@@ -719,12 +726,14 @@ export const createProviderThread = async ({
   title,
   isPrivate,
   channel,
+  requestId,
 }: {
   providerId: string;
   userId: string;
   title?: string;
   isPrivate?: boolean;
   channel: ProviderChannelInput;
+  requestId?: string;
 }) => {
   const context = await loadOrCreateProviderUserContext({ providerId, userId });
   const created = await createThreadForContext({
@@ -753,6 +762,7 @@ export const createProviderThread = async ({
 
   logProviderAudit({
     event: "provider.thread.created",
+    requestId,
     providerId,
     userId,
     threadId: created.threadId,
@@ -777,11 +787,13 @@ export const renameProviderThread = async ({
   userId,
   threadId,
   title,
+  requestId,
 }: {
   providerId: string;
   userId: string;
   threadId: string;
   title: string;
+  requestId?: string;
 }) => {
   const context = await loadOrCreateProviderUserContext({ providerId, userId });
   const nextTitle = title.trim().slice(0, 80);
@@ -826,6 +838,7 @@ export const renameProviderThread = async ({
 
   logProviderAudit({
     event: "provider.thread.renamed",
+    requestId,
     providerId,
     userId,
     threadId,
@@ -843,10 +856,12 @@ export const deleteProviderThread = async ({
   providerId,
   userId,
   threadId,
+  requestId,
 }: {
   providerId: string;
   userId: string;
   threadId: string;
+  requestId?: string;
 }) => {
   const context = await loadOrCreateProviderUserContext({ providerId, userId });
   const thread = context.threads.find((entry) => entry.id === threadId);
@@ -875,6 +890,7 @@ export const deleteProviderThread = async ({
 
   logProviderAudit({
     event: "provider.thread.deleted",
+    requestId,
     providerId,
     userId,
     threadId,
@@ -1009,9 +1025,11 @@ export const isProviderRateLimitError = (
 export const handleProviderConversationInput = async ({
   input,
   providerConfig,
+  requestId,
 }: {
   input: ProviderConversationInput;
   providerConfig: ProviderConfig;
+  requestId?: string;
 }) => {
   const model = input.model?.trim() || DEFAULT_MODEL;
   const timeZone = getRequestTimeZone(input.timezone);
@@ -1030,6 +1048,7 @@ export const handleProviderConversationInput = async ({
 
   logProviderAudit({
     event: "provider.conversation.received",
+    requestId,
     providerId: input.provider_id,
     userId: input.user_id,
     threadId: input.thread_id,
@@ -1114,6 +1133,7 @@ export const handleProviderConversationInput = async ({
       threadId,
       toolName: decision.tool_name,
       args: decision.arguments,
+      requestId,
     });
 
     assistantContent = execution.message;
@@ -1122,6 +1142,7 @@ export const handleProviderConversationInput = async ({
 
     logProviderAudit({
       event: "provider.tool.executed",
+      requestId,
       providerId: input.provider_id,
       userId: input.user_id,
       threadId,
@@ -1167,6 +1188,7 @@ export const handleProviderConversationInput = async ({
 
   logProviderAudit({
     event: "provider.conversation.completed",
+    requestId,
     providerId: input.provider_id,
     userId: input.user_id,
     threadId,

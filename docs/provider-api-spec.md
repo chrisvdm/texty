@@ -69,6 +69,13 @@ Recommended headers:
 
 Successful responses should be JSON.
 
+Every successful and error response should also include:
+
+- `request_id` in the JSON body
+- `X-Request-Id` in the response headers
+
+If the caller provides `X-Request-Id`, Texty should reuse it. Otherwise Texty should generate one.
+
 Error responses should use a consistent shape:
 
 ```json
