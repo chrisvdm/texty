@@ -44,6 +44,7 @@ Start executing the provider-aware MVP plan by adding the first real provider se
   - thread selection
   - thread rename
   - thread deletion
+- Rewired initial page hydration for the web chat and sandbox messenger so they now load from provider/user/channel-backed state first, using browser session only as a bootstrap and rendering bridge
 - Used the browser session as a linked web-channel identity by:
   - deriving a stable web user id from the browser session cookie
   - bootstrapping provider context from existing browser-session thread and memory state when needed
@@ -56,8 +57,8 @@ Start executing the provider-aware MVP plan by adding the first real provider se
 
 ## Notes
 
-- The existing browser-session web UI still exists as a rendering/session layer, but its thread and message actions now use the provider-backed core path.
-- This is still not the full end-state service model, because the page load path and initial hydration remain browser-session based.
+- The existing browser-session web UI still exists as a rendering/session layer, but both its hydration path and its thread/message actions now use provider-backed state.
+- Browser session still exists as the current web-channel bridge and persistence helper rather than the long-term provider-authenticated user identity model for all surfaces.
 - Provider auth currently expects `TEXTY_PROVIDER_CONFIG` as JSON in the environment, with per-provider API token configuration and optional base URL.
 
 ## Verification

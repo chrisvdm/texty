@@ -127,3 +127,6 @@ export const getBrowserSessionIdFromRequest = (request: Request) => {
 
   return getUnsignedSessionId(packedSessionId);
 };
+
+export const getBrowserSessionIdFromPackedCookie = (packedSessionId: string) =>
+  getUnsignedSessionId(packedSessionId);

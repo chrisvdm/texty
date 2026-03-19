@@ -115,6 +115,8 @@ const buildChannelKey = (channel: ProviderChannelInput) =>
 const getRequestTimeZone = (timeZone?: string | null) =>
   resolveConversationTimeZone(timeZone);
 
+export const WEB_PROVIDER_ID = "texty_web";
+
 const sortThreadsByRecency = (threads: ChatThreadSummary[]) =>
   [...threads].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 
@@ -844,6 +846,90 @@ export const getProviderThreadMemory = async ({
 
   const session = await loadChatSession(threadId);
   return session.memory;
+};
+
+export const getProviderHydratedState = async ({
+  providerId,
+  userId,
+  channel,
+  fallbackThreadId,
+  fallbackGlobalMemory,
+  fallbackThreads,
+  fallbackModel,
+}: {
+  providerId: string;
+  userId: string;
+  channel: ProviderChannelInput;
+  fallbackThreadId?: string;
+  fallbackGlobalMemory?: ProviderUserContext["globalMemory"];
+  fallbackThreads?: ChatThreadSummary[];
+  fallbackModel?: string;
+}) => {
+  let context = await loadOrCreateProviderUserContext({ providerId, userId });
+  const channelKey = buildChannelKey(channel);
+  const channelState = context.channels[channelKey];
+
+  if (context.threads.length === 0 && fallbackThreads && fallbackThreads.length > 0) {
+    context = await saveProviderUserContext({
+      ...context,
+      selectedModel: fallbackModel || context.selectedModel,
+      globalMemory: fallbackGlobalMemory || context.globalMemory,
+      threads: fallbackThreads,
+      channels: {
+        ...context.channels,
+        [channelKey]: {
+          type: channel.type,
+          id: channel.id,
+          lastActiveThreadId: fallbackThreadId || fallbackThreads[0]?.id || null,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    });
+  }
+
+  let activeThreadId =
+    channelState?.lastActiveThreadId ||
+    fallbackThreadId ||
+    context.threads[0]?.id ||
+    null;
+
+  if (!activeThreadId) {
+    const created = await createThreadForContext({
+      context,
+      isPrivate: false,
+      channel,
+    });
+    context = created.context;
+    activeThreadId = created.threadId;
+  }
+
+  if (
+    !context.channels[channelKey] ||
+    context.channels[channelKey]?.lastActiveThreadId !== activeThreadId
+  ) {
+    context = await saveProviderUserContext({
+      ...context,
+      channels: {
+        ...context.channels,
+        [channelKey]: {
+          type: channel.type,
+          id: channel.id,
+          lastActiveThreadId: activeThreadId,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    });
+  }
+
+  const threadSession = await loadChatSession(activeThreadId);
+
+  return {
+    activeThreadId,
+    threads: context.threads,
+    globalMemory: context.globalMemory,
+    selectedModel: context.selectedModel,
+    session: threadSession,
+  };
 };
 
 export const handleProviderConversationInput = async ({
