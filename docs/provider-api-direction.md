@@ -100,9 +100,11 @@ This means:
 
 ## Memory Policy
 
-Providers should not be forced into one memory model.
+Providers should not be forced into one memory-usage model.
 
-Texty should support configurable memory policy per provider/user pair.
+Texty should capture memory from normal conversations by default, unless the thread is explicitly private.
+
+After that, providers should be able to choose how much of that captured memory they want to use.
 
 Examples:
 

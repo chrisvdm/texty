@@ -221,23 +221,75 @@ That is the direction this document defines.
 
 ## Memory Policy
 
-Memory must be configurable.
+Memory behavior must be configurable, but capture and usage should be treated as different things.
 
-This is important because different providers want different behavior:
+Texty should use this default rule:
+
+- all non-private conversations are captured into memory
+- private threads are the exception
+
+After capture, providers decide how that stored memory may be used.
+
+This is important because different providers want different usage behavior:
 
 - Kindling may want no durable memory at all
 - Scarymonster may want strong long-term continuity
 - some users may want their own external RAG instead of Texty-managed memory
 
-So Texty should not force one memory model on every provider.
+So Texty should not force one memory-usage model on every provider.
 
-Texty should support multiple memory modes and enforce them consistently.
+Texty should:
+
+- capture memory by default
+- allow private threads to opt out of shared memory capture
+- allow different providers to use captured memory differently
+
+## Memory Capture Rule
+
+Texty should capture memory from all non-private conversations.
+
+That means:
+
+- text from web chat can be captured
+- text from WhatsApp can be captured
+- text from email can be captured
+- transcribed voice-note text can be captured
+
+Private threads are the explicit exception.
+
+If a thread is private:
+
+- it should not write into shared/global memory
+- it should not contribute to shared long-term memory
+
+This keeps capture simple and predictable:
+
+- normal conversations are remembered
+- private conversations are not added to shared memory
+
+## Memory Usage Rule
+
+Even if memory is captured, not every provider has to use it.
+
+This is the key separation:
+
+- capture answers: "Should this be stored?"
+- usage answers: "Should this be used for this provider/product?"
+
+So:
+
+- Kindling may choose to ignore most or all captured memory
+- Scarymonster may choose to use provider-level memory heavily
+- another provider may choose to use only thread memory
+- another provider may send its own external retrieved context
+
+This means Texty can preserve useful user context without forcing every provider to depend on it.
 
 ## Recommended Memory Modes
 
 ### `none`
 
-No durable memory.
+No durable memory usage.
 
 Use only:
 
@@ -254,6 +306,11 @@ Use this when:
 Example:
 
 - Kindling running isolated app-building sessions
+
+Important:
+
+- this mode affects usage
+- it does not change the default capture rule unless the conversation is private
 
 ### `thread`
 
@@ -305,7 +362,7 @@ It should be explicit and never assumed.
 
 ### `external`
 
-Texty does not own the durable memory source.
+Texty does not rely on its own durable memory source for retrieval.
 
 Instead, the provider supplies retrieved context for the turn.
 
@@ -381,8 +438,8 @@ Or:
 
 Texty should:
 
-- not read durable memory
-- not write durable memory
+- not read durable memory for response generation
+- still follow the default capture rule unless the thread is private
 - only use immediate conversational context
 
 ### If mode is `thread`
@@ -390,7 +447,7 @@ Texty should:
 Texty should:
 
 - read/write thread memory
-- not read/write shared global user memory
+- not use shared global user memory
 
 ### If mode is `provider_user`
 
@@ -446,6 +503,15 @@ Memory sharing must be explicit.
 
 Sometimes the provider will have a better RAG layer.
 Texty must allow that.
+
+## Short Version
+
+The simplest way to explain the rule set is:
+
+- Texty remembers normal conversations by default
+- private threads are not added to shared memory
+- providers decide how much of that remembered context they want to use
+- some providers may ignore Texty memory and use their own RAG instead
 
 ## Recommended Near-Term Implementation Path
 

@@ -90,6 +90,8 @@ So the repo should currently be understood as:
 - Browser session state maintains a lightweight global user-memory document for stable profile facts.
 - Retrieval is keyword and fact based; there is no embeddings layer or vector database.
 - Current date, time, and timezone are included explicitly in model context.
+- The intended long-term rule is: normal conversations are captured into memory by default, while private threads are excluded from shared memory capture.
+- Providers may then choose how much of that captured memory they actually use.
 
 ## Planned Provider Model
 
