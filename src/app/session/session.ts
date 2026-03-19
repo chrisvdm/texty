@@ -58,7 +58,7 @@ export const browserSessionStore = defineDurableSession({
     env.BROWSER_SESSIONS as DurableObjectNamespace<BrowserSessionDurableObject>,
 });
 
-const getSessionCookieValue = (request: Request) => {
+export const getSessionCookieValue = (request: Request) => {
   const cookieHeader = request.headers.get("Cookie");
 
   if (!cookieHeader) {
@@ -84,7 +84,7 @@ const getSessionCookieValue = (request: Request) => {
   return null;
 };
 
-const getUnsignedSessionId = (packedSessionId: string) => {
+export const getUnsignedSessionId = (packedSessionId: string) => {
   const decoded = atob(packedSessionId);
   const separatorIndex = decoded.indexOf(":");
 
@@ -116,4 +116,14 @@ export const persistBrowserSession = async ({
   const sessionStub = env.BROWSER_SESSIONS.get(sessionId);
 
   await sessionStub.saveSession(session);
+};
+
+export const getBrowserSessionIdFromRequest = (request: Request) => {
+  const packedSessionId = getSessionCookieValue(request);
+
+  if (!packedSessionId) {
+    return null;
+  }
+
+  return getUnsignedSessionId(packedSessionId);
 };

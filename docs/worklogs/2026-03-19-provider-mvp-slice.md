@@ -38,6 +38,16 @@ Start executing the provider-aware MVP plan by adding the first real provider se
   - otherwise create a new thread
 - Added sync provider tool execution callout through the provider's `/tools/execute` endpoint
 - Added provider-side private-thread enforcement for shared-memory retrieval and shared-memory writes
+- Rewired the browser chat service so the web UI now uses the provider-backed core path for:
+  - message sends
+  - thread creation
+  - thread selection
+  - thread rename
+  - thread deletion
+- Used the browser session as a linked web-channel identity by:
+  - deriving a stable web user id from the browser session cookie
+  - bootstrapping provider context from existing browser-session thread and memory state when needed
+  - syncing provider-backed state back into the browser session for UI rendering
 
 ## Worker Changes
 
@@ -46,8 +56,8 @@ Start executing the provider-aware MVP plan by adding the first real provider se
 
 ## Notes
 
-- The existing browser-session web UI remains intact in this slice.
-- This is the first provider-aware service layer, not yet the full migration of the web UI onto the provider API path.
+- The existing browser-session web UI still exists as a rendering/session layer, but its thread and message actions now use the provider-backed core path.
+- This is still not the full end-state service model, because the page load path and initial hydration remain browser-session based.
 - Provider auth currently expects `TEXTY_PROVIDER_CONFIG` as JSON in the environment, with per-provider API token configuration and optional base URL.
 
 ## Verification

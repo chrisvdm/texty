@@ -35,8 +35,20 @@ import {
 } from "./shared";
 import {
   persistBrowserSession as persistSessionState,
+  getBrowserSessionIdFromRequest,
   type BrowserSession,
 } from "../session/session";
+import {
+  createProviderThread,
+  deleteProviderThread,
+  handleProviderConversationInput,
+  renameProviderThread,
+} from "../provider/provider.service";
+import {
+  loadOrCreateProviderUserContext,
+  saveProviderUserContext,
+} from "../provider/provider.storage";
+import type { ProviderChannelInput } from "../provider/provider.types";
 
 type OpenRouterResponse = {
   choices?: Array<{
@@ -74,6 +86,83 @@ const persistBrowserSession = async (session: BrowserSession) => {
 };
 
 const requireChatSessionId = () => requireBrowserSession().activeThreadId;
+
+const WEB_PROVIDER_ID = "texty_web";
+
+const getWebChannelType = () => {
+  const referer = requestInfo.request.headers.get("Referer") || "";
+
+  return referer.includes("/sandbox/messenger") ? "sandbox_messenger" : "web";
+};
+
+const getWebIdentity = () => {
+  const browserSession = requireBrowserSession();
+  const userId =
+    getBrowserSessionIdFromRequest(requestInfo.request) ||
+    browserSession.activeThreadId;
+  const channel: ProviderChannelInput = {
+    type: getWebChannelType(),
+    id: userId,
+  };
+
+  return {
+    providerId: WEB_PROVIDER_ID,
+    userId,
+    channel,
+  };
+};
+
+const ensureWebProviderContext = async () => {
+  const browserSession = requireBrowserSession();
+  const { providerId, userId, channel } = getWebIdentity();
+  let context = await loadOrCreateProviderUserContext({ providerId, userId });
+
+  if (context.threads.length === 0 && browserSession.threads.length > 0) {
+    context = await saveProviderUserContext({
+      ...context,
+      selectedModel: browserSession.selectedModel,
+      globalMemory: browserSession.globalMemory,
+      threads: browserSession.threads,
+      channels: {
+        ...context.channels,
+        [`${channel.type}:${channel.id}`]: {
+          type: channel.type,
+          id: channel.id,
+          lastActiveThreadId: browserSession.activeThreadId,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    });
+  }
+
+  return {
+    browserSession,
+    context,
+    providerId,
+    userId,
+    channel,
+  };
+};
+
+const syncBrowserSessionFromProviderContext = async ({
+  activeThreadId,
+}: {
+  activeThreadId: string;
+}) => {
+  const { providerId, userId } = getWebIdentity();
+  const providerContext = await loadOrCreateProviderUserContext({ providerId, userId });
+  const threadSession = await loadChatSession(activeThreadId);
+  const nextSession: BrowserSession = {
+    activeThreadId,
+    threads: providerContext.threads,
+    globalMemory: providerContext.globalMemory,
+    selectedModel: providerContext.selectedModel,
+  };
+
+  await persistBrowserSession(nextSession);
+
+  return formatThreadState(nextSession, threadSession, nextSession.selectedModel);
+};
 
 const updateThreadSummaries = (
   threads: ChatThreadSummary[],
@@ -117,26 +206,17 @@ const createAndPersistThread = async ({
 }: {
   isTemporary?: boolean;
 } = {}) => {
-  const currentSession = requireBrowserSession();
-  const nextThreadId = crypto.randomUUID();
-  const nextThreadState = createInitialChatState();
+  const { providerId, userId, channel } = await ensureWebProviderContext();
+  const created = await createProviderThread({
+    providerId,
+    userId,
+    isPrivate: isTemporary,
+    channel,
+  });
 
-  await saveChatSession(nextThreadId, nextThreadState);
-
-  const nextSession: BrowserSession = {
-    ...currentSession,
-    activeThreadId: nextThreadId,
-    threads: [
-      createThreadSummary(nextThreadId, nextThreadState.messages.length, {
-        isTemporary,
-      }),
-      ...currentSession.threads,
-    ],
-  };
-
-  await persistBrowserSession(nextSession);
-
-  return formatThreadState(nextSession, nextThreadState);
+  return syncBrowserSessionFromProviderContext({
+    activeThreadId: created.thread_id,
+  });
 };
 
 const sendMessageToThread = async ({
@@ -159,187 +239,126 @@ const sendMessageToThread = async ({
     throw new Error("Please enter a message before sending.");
   }
 
-  const browserSession = requireBrowserSession();
+  const { providerId, userId, channel } = await ensureWebProviderContext();
   const selectedModel =
-    model?.trim() || browserSession.selectedModel || env.OPENROUTER_MODEL || DEFAULT_MODEL;
-  const timeZone = getRequestTimeZone();
-  const threadExists = browserSession.threads.some((thread) => thread.id === sessionId);
+    model?.trim() ||
+    requireBrowserSession().selectedModel ||
+    env.OPENROUTER_MODEL ||
+    DEFAULT_MODEL;
 
-  if (!threadExists) {
-    throw new Error("That thread is no longer available.");
-  }
-
-  const currentSummary = browserSession.threads.find(
-    (thread) => thread.id === sessionId,
-  );
-
-  if (!currentSummary) {
-    throw new Error("The active thread could not be found.");
-  }
-
-  const memoryScope = currentSummary.isTemporary
-    ? createEmptyGlobalMemory()
-    : browserSession.globalMemory;
-  const currentState = await loadChatSession(sessionId);
-  const withUserMessage = {
-    messages: [...currentState.messages, createUserMessage(content)],
-    memory: currentState.memory,
-  };
-
-  await saveChatSession(sessionId, withUserMessage);
-
-  try {
-    const threadMemoryContext = buildMemoryContext({
-      userMessage: content,
-      messages: currentState.messages,
-      threadMemory: currentState.memory,
-      globalMemory: memoryScope,
-    });
-    const reply = await generateAssistantReply({
-      messages: withUserMessage.messages,
-      threadMemoryContext,
+  const result = await handleProviderConversationInput({
+    providerConfig: {
+      token: "",
+    },
+    input: {
+      provider_id: providerId,
+      user_id: userId,
+      thread_id: sessionId,
+      input: {
+        kind: "text",
+        text: content,
+      },
       model: selectedModel,
-      timeZone,
-    });
-    const nextState = {
-      messages: [...withUserMessage.messages, createAssistantMessage(reply.content)],
-      memory: currentState.memory,
-    };
+      timezone: getRequestTimeZone(),
+      channel,
+      context: {
+        external_memories: [],
+      },
+    },
+  });
 
-    await saveChatSession(sessionId, nextState);
-
-    let finalState = nextState;
-    let nextGlobalMemory = browserSession.globalMemory;
-
-    try {
-      const refreshedMemories = await refreshMemories({
-        threadId: sessionId,
-        messages: nextState.messages,
-        previousThreadMemory: currentState.memory,
-        globalMemory: memoryScope,
-        timeZone,
-      });
-
-      finalState = {
-        ...nextState,
-        memory: refreshedMemories.threadMemory,
-      };
-      nextGlobalMemory = currentSummary.isTemporary
-        ? browserSession.globalMemory
-        : refreshedMemories.globalMemory;
-
-      await saveChatSession(sessionId, finalState);
-    } catch (memoryError) {
-      console.warn("Unable to refresh chat memory", memoryError);
-    }
-
-    const nextSession: BrowserSession = {
-      ...browserSession,
-      activeThreadId: sessionId,
-      globalMemory: nextGlobalMemory,
-      selectedModel,
-      threads: updateThreadSummaries(
-        browserSession.threads,
-        buildThreadSummary(currentSummary, finalState.messages),
-      ),
-    };
-
-    await persistBrowserSession(nextSession);
-
-    return formatThreadState(nextSession, finalState, reply.model);
-  } catch (error) {
-    await saveChatSession(sessionId, currentState);
-    throw error;
-  }
+  return syncBrowserSessionFromProviderContext({
+    activeThreadId: result.thread_id,
+  });
 };
 
 const selectThreadState = async (threadId: string) => {
-  const browserSession = requireBrowserSession();
   const nextThreadId = threadId.trim();
 
   if (!nextThreadId) {
     throw new Error("Choose a thread before trying to open it.");
   }
 
-  const threadExists = browserSession.threads.some(
-    (thread) => thread.id === nextThreadId,
-  );
+  const { browserSession, providerId, userId, channel, context } =
+    await ensureWebProviderContext();
+  const exists = context.threads.some((thread) => thread.id === nextThreadId);
 
-  if (!threadExists) {
+  if (!exists) {
     throw new Error("That thread is no longer available.");
   }
 
-  const nextSession: BrowserSession = {
-    ...browserSession,
+  await saveProviderUserContext({
+    ...context,
+    channels: {
+      ...context.channels,
+      [`${channel.type}:${channel.id}`]: {
+        type: channel.type,
+        id: channel.id,
+        lastActiveThreadId: nextThreadId,
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  });
+
+  return syncBrowserSessionFromProviderContext({
     activeThreadId: nextThreadId,
-  };
-
-  const threadSession = await loadChatSession(nextThreadId);
-
-  await persistBrowserSession(nextSession);
-
-  return formatThreadState(nextSession, threadSession);
+  });
 };
 
 const deleteThreadState = async (threadId: string) => {
-  const browserSession = requireBrowserSession();
   const targetThreadId = threadId.trim();
 
   if (!targetThreadId) {
     throw new Error("Choose a thread before trying to delete it.");
   }
 
-  const threadExists = browserSession.threads.some(
-    (thread) => thread.id === targetThreadId,
-  );
+  const { browserSession, providerId, userId, channel, context } =
+    await ensureWebProviderContext();
+  const threadExists = context.threads.some((thread) => thread.id === targetThreadId);
 
   if (!threadExists) {
     throw new Error("That thread is no longer available.");
   }
 
-  await deleteChatSession(targetThreadId);
+  await deleteProviderThread({
+    providerId,
+    userId,
+    threadId: targetThreadId,
+  });
 
-  const remainingThreads = browserSession.threads.filter(
-    (thread) => thread.id !== targetThreadId,
-  );
-  const nextGlobalMemory =
-    browserSession.threads.length > 1
-      ? pruneGlobalMemoryByThreadId(browserSession.globalMemory, targetThreadId)
-      : createEmptyGlobalMemory();
+  let nextContext = await loadOrCreateProviderUserContext({ providerId, userId });
+  let nextActiveThreadId =
+    browserSession.activeThreadId === targetThreadId
+      ? nextContext.threads[0]?.id ?? null
+      : browserSession.activeThreadId;
 
-  if (remainingThreads.length === 0) {
-    const nextThreadId = crypto.randomUUID();
-    const nextThreadState = createInitialChatState();
-
-    await saveChatSession(nextThreadId, nextThreadState);
-
-    const nextSession: BrowserSession = {
-      ...browserSession,
-      activeThreadId: nextThreadId,
-      threads: [createThreadSummary(nextThreadId, nextThreadState.messages.length)],
-      globalMemory: nextGlobalMemory,
-    };
-
-    await persistBrowserSession(nextSession);
-
-    return formatThreadState(nextSession, nextThreadState);
+  if (!nextActiveThreadId) {
+    const created = await createProviderThread({
+      providerId,
+      userId,
+      channel,
+      isPrivate: false,
+    });
+    nextActiveThreadId = created.thread_id;
+    nextContext = await loadOrCreateProviderUserContext({ providerId, userId });
   }
 
-  const nextActiveThreadId =
-    browserSession.activeThreadId === targetThreadId
-      ? remainingThreads[0].id
-      : browserSession.activeThreadId;
-  const nextSession: BrowserSession = {
-    ...browserSession,
+  await saveProviderUserContext({
+    ...nextContext,
+    channels: {
+      ...nextContext.channels,
+      [`${channel.type}:${channel.id}`]: {
+        type: channel.type,
+        id: channel.id,
+        lastActiveThreadId: nextActiveThreadId,
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  });
+
+  return syncBrowserSessionFromProviderContext({
     activeThreadId: nextActiveThreadId,
-    threads: remainingThreads,
-    globalMemory: nextGlobalMemory,
-  };
-  const threadSession = await loadChatSession(nextActiveThreadId);
-
-  await persistBrowserSession(nextSession);
-
-  return formatThreadState(nextSession, threadSession);
+  });
 };
 
 const renameThreadState = async ({
@@ -349,7 +368,6 @@ const renameThreadState = async ({
   threadId: string;
   title: string;
 }) => {
-  const browserSession = requireBrowserSession();
   const nextThreadId = threadId.trim();
   const nextTitle = title.trim().slice(0, 80);
 
@@ -361,48 +379,18 @@ const renameThreadState = async ({
     throw new Error("Enter a thread name before saving.");
   }
 
-  const currentSummary = browserSession.threads.find(
-    (thread) => thread.id === nextThreadId,
-  );
+  const { providerId, userId } = await ensureWebProviderContext();
 
-  if (!currentSummary) {
-    throw new Error("That thread is no longer available.");
-  }
-
-  const nextThreads = browserSession.threads.map((thread) =>
-    thread.id === nextThreadId
-      ? {
-          ...thread,
-          title: nextTitle,
-          isTitleEdited: true,
-          updatedAt: new Date().toISOString(),
-        }
-      : thread,
-  );
-  const nextGlobalMemory = {
-    ...browserSession.globalMemory,
-    threadSummaries: browserSession.globalMemory.threadSummaries.map((summary) =>
-      summary.threadId === nextThreadId
-        ? { ...summary, title: nextTitle }
-        : summary,
-    ),
-    markdown: "",
-  };
-  nextGlobalMemory.markdown = buildGlobalMemoryMarkdown({
-    memory: nextGlobalMemory,
-    threadSummaries: nextGlobalMemory.threadSummaries,
+  await renameProviderThread({
+    providerId,
+    userId,
+    threadId: nextThreadId,
+    title: nextTitle,
   });
 
-  const nextSession: BrowserSession = {
-    ...browserSession,
-    threads: nextThreads,
-    globalMemory: nextGlobalMemory,
-  };
-  const threadSession = await loadChatSession(browserSession.activeThreadId);
-
-  await persistBrowserSession(nextSession);
-
-  return formatThreadState(nextSession, threadSession);
+  return syncBrowserSessionFromProviderContext({
+    activeThreadId: requireBrowserSession().activeThreadId,
+  });
 };
 
 const appendCommandHistoryToThread = async ({
