@@ -1,45 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createEmptyGlobalMemory } from "../chat/shared.ts";
-
 import { createHandleConversationInputEndpoint } from "./provider.conversation.endpoint.core.ts";
 import {
   buildIdempotencyKey,
-  storeIdempotencyReplay,
-} from "./provider.idempotency.ts";
-import {
-  getIdempotencyHeader,
-  getRequestId,
-  jsonError,
-  jsonResponse,
-  readJson,
-  replayIdempotentResponse,
-} from "./provider.http.ts";
-import type { ProviderConversationInput, ProviderUserContext } from "./provider.types.ts";
+  createReplayContext,
+  createTestContext,
+  okAuth,
+  sharedEndpointDeps,
+} from "./provider.endpoint.test-helpers.ts";
+import type { ProviderConversationInput } from "./provider.types.ts";
 
 const isNeverRateLimitError = (
   _error: unknown,
 ): _error is Error & { retryAfterSeconds: number } => false;
-
-const createTestContext = (): ProviderUserContext => ({
-  providerId: "provider_a",
-  userId: "user_123",
-  selectedModel: "openai/gpt-4o-mini",
-  memoryPolicy: {
-    mode: "provider_user",
-  },
-  globalMemory: createEmptyGlobalMemory(),
-  threads: [],
-  allowedTools: [],
-  channels: {},
-  requestLog: {
-    conversationInputTimestamps: [],
-  },
-  idempotency: {},
-  createdAt: "2026-03-21T10:00:00.000Z",
-  updatedAt: "2026-03-21T10:00:00.000Z",
-});
 
 const createConversationRequest = ({
   body,
@@ -76,14 +50,9 @@ const createInput = (): ProviderConversationInput => ({
 
 test("conversation endpoint includes request tracing on success", async () => {
   const endpoint = createHandleConversationInputEndpoint({
-    getRequestId,
-    getIdempotencyHeader,
-    readJson,
-    jsonResponse,
-    jsonError,
-    replayIdempotentResponse,
+    ...sharedEndpointDeps,
     authenticateProviderRequest: () => ({
-      ok: true,
+      ...okAuth(),
       providerConfig: {
         token: "test-token",
       },
@@ -123,26 +92,19 @@ test("conversation endpoint replays idempotent responses", async () => {
     path: "/api/v1/conversation/input",
     idempotencyKey: "idem_123",
   });
-  const context = storeIdempotencyReplay({
-    context: createTestContext(),
+  const context = createReplayContext({
     storageKey,
     requestHash: "hash_123",
     status: 202,
     body: {
       state: "accepted",
     },
-    now: new Date().toISOString(),
   });
 
   const endpoint = createHandleConversationInputEndpoint({
-    getRequestId,
-    getIdempotencyHeader,
-    readJson,
-    jsonResponse,
-    jsonError,
-    replayIdempotentResponse,
+    ...sharedEndpointDeps,
     authenticateProviderRequest: () => ({
-      ok: true,
+      ...okAuth(),
       providerConfig: {
         token: "test-token",
       },
@@ -188,14 +150,9 @@ test("conversation endpoint replays idempotent responses", async () => {
 
 test("conversation endpoint rejects idempotency conflicts", async () => {
   const endpoint = createHandleConversationInputEndpoint({
-    getRequestId,
-    getIdempotencyHeader,
-    readJson,
-    jsonResponse,
-    jsonError,
-    replayIdempotentResponse,
+    ...sharedEndpointDeps,
     authenticateProviderRequest: () => ({
-      ok: true,
+      ...okAuth(),
       providerConfig: {
         token: "test-token",
       },
@@ -233,14 +190,9 @@ test("conversation endpoint rejects idempotency conflicts", async () => {
 
 test("conversation endpoint returns a traced 429 for rate-limited requests", async () => {
   const endpoint = createHandleConversationInputEndpoint({
-    getRequestId,
-    getIdempotencyHeader,
-    readJson,
-    jsonResponse,
-    jsonError,
-    replayIdempotentResponse,
+    ...sharedEndpointDeps,
     authenticateProviderRequest: () => ({
-      ok: true,
+      ...okAuth(),
       providerConfig: {
         token: "test-token",
       },

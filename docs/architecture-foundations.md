@@ -25,12 +25,12 @@ Core entity definitions are defined in `docs/data-model.md`.
 
 ## One-Sentence Goal
 
-Texty should become a reusable conversational control layer that sits in front of many different execution providers.
+Texty should become a reusable conversational control layer that sits in front of many different execution systems.
 
 That means:
 
 - Texty manages the conversation
-- providers perform the work
+- executors perform the work
 
 ## Core Roles
 
@@ -52,16 +52,16 @@ It should own:
 
 Texty should not own provider-specific business workflows.
 
-### Provider
+### Executor
 
-A provider is an external system that exposes capabilities to Texty.
+An executor is an external system that exposes capabilities to Texty.
 
 Examples:
 
-- Provider A
-- Provider B
+- Executor A
+- Executor B
 
-A provider should own:
+An executor should own:
 
 - tool definitions
 - workflow definitions
@@ -69,62 +69,78 @@ A provider should own:
 - domain-specific validation
 - execution logs
 
-### User
+### End User
 
-The user is the human using the provider.
+The end user is the human using the executor through Texty.
 
 Examples:
 
-- Chris using Provider A
-- Sam using Provider B
+- Chris using Executor A
+- Sam using Executor B
 
-The provider is not the user.
+The executor is not the user.
 
-The provider is the system.
-The user is the person.
+The executor is the system.
+The end user is the person.
+
+### Account
+
+An account owns billing and connected apps.
+
+For MVP, the important simplification is:
+
+- one account can own many executors
+- one executor gets one runtime token
+- that token can be shared by the team working on that app
+- end users do not get executor tokens
 
 ## Identity Model
 
-### `provider_id`
+### `executor_id`
 
-`provider_id` identifies the external execution system.
+`executor_id` identifies the external execution system.
+
+Current note:
+
+- the wire format in the current MVP still uses `provider_id`
+- the product framing is moving toward `executor`
 
 Examples:
 
-- `provider_a`
-- `provider_b`
+- `executor_a`
+- `executor_b`
 
 Its purpose is to:
 
-- route execution to the correct provider
+- route execution to the correct executor
 - namespace tools
-- separate configuration and sync state per provider
-- support multiple providers inside one Texty deployment
+- separate configuration and sync state per executor
+- support multiple executors inside one Texty deployment
 
 ### `user_id`
 
-`user_id` identifies the human within the provider.
+`user_id` identifies the human within the executor context.
 
 Examples:
 
 - `chris_123`
 - `sam_42`
 
-`user_id` is provider-relative unless a higher-level shared identity is introduced later.
+`user_id` is executor-relative unless a higher-level shared identity is introduced later.
 
 That means this is valid:
 
-- `provider_id = provider_a`
+- `executor_id = executor_a`
 - `user_id = chris_123`
 
 and this is also valid:
 
-- `provider_id = provider_b`
+- `executor_id = executor_b`
 - `user_id = chris_123`
 
 Those may or may not refer to the same human in real life. Texty should not assume they are shared unless explicitly configured.
 
-### One provider can have many users
+### One executor can have many users
 
 Yes.
 
@@ -132,8 +148,8 @@ That is the normal case.
 
 Examples:
 
-- Provider A may have thousands of users
-- Provider B may have thousands of users
+- Executor A may have thousands of users
+- Executor B may have thousands of users
 
 Each user may have:
 
@@ -160,13 +176,13 @@ Recommended key:
 
 - `thread_id`
 
-### 2. User conversation context
+### 2. Executor user context
 
-This is the user-level record used by Texty.
+This is the user-level record used by Texty for one executor/user pair.
 
 It should contain:
 
-- provider/user identity
+- executor/user identity
 - selected model preferences
 - allowed tool catalog
 - memory policy
@@ -174,7 +190,7 @@ It should contain:
 
 Recommended key:
 
-- `(provider_id, user_id)`
+- `(executor_id, user_id)`
 
 ### 3. Global memory
 
@@ -192,14 +208,14 @@ This should not automatically be global across all providers.
 
 ### 4. Tool access / provider sync state
 
-This is the user-specific provider data that Texty needs in order to reason over tools.
+This is the user-specific executor data that Texty needs in order to reason over tools.
 
 It should contain:
 
 - synced tools
 - schemas
 - policies
-- provider configuration metadata
+- executor configuration metadata
 
 ## Current Implementation vs Intended Implementation
 
@@ -216,11 +232,11 @@ That means:
   - global memory
   - selected model
 
-So current global memory is effectively scoped to a browser session, not yet to a real provider/user identity.
+So current global memory is effectively scoped to a browser session, not yet to a real executor/user identity.
 
 ### Intended implementation
 
-For the provider model, global memory should be scoped according to an explicit memory policy, not to a browser cookie.
+For the executor model, global memory should be scoped according to an explicit memory policy, not to a browser cookie.
 
 That is the direction this document defines.
 
@@ -233,9 +249,9 @@ Texty should use this default rule:
 - all non-private conversations are captured into memory
 - private threads are the exception
 
-After capture, providers decide how that stored memory may be retrieved and used.
+After capture, executors decide how that stored memory may be retrieved and used.
 
-This is important because different providers want different retrieval behavior:
+This is important because different executors want different retrieval behavior:
 
 - one provider may want no shared-memory retrieval
 - another may want strong long-term continuity
@@ -385,7 +401,7 @@ Example:
 
 ## How Retrieval Policy Should Be Applied
 
-Each provider/user pair should have a memory configuration record.
+Each executor/user pair should have a memory configuration record.
 
 Example:
 
@@ -520,8 +536,8 @@ The simplest way to explain the rule set is:
 
 ## Recommended Near-Term Implementation Path
 
-1. Move from browser-session global memory to explicit provider/user identity.
-2. Add a provider/user configuration record.
+1. Move from browser-session global memory to explicit executor/user identity.
+2. Add an executor/user configuration record.
 3. Store `memory_policy` there.
 4. Route Texty memory retrieval and persistence through that policy.
 5. Add `external` context support in the conversation input API.

@@ -25,9 +25,19 @@ Texty should keep a clear distinction between:
 
 ## Main Entities
 
-### Provider
+### Account
 
-A provider is an external system connected to Texty.
+An account owns billing and connected apps.
+
+For MVP:
+
+- one account can own many executors
+- each executor gets one shared runtime token
+- that token is shared by the team working on that app
+
+### Executor
+
+An executor is an external system connected to Texty.
 
 It is not a person.
 
@@ -39,7 +49,7 @@ It represents the system that:
 
 Key fields:
 
-- `provider_id`
+- `executor_id`
 - `name`
 - `base_url`
 - `auth_config`
@@ -49,20 +59,25 @@ Example:
 
 ```json
 {
-  "provider_id": "provider_a",
-  "name": "Provider A",
+  "executor_id": "executor_a",
+  "name": "Executor A",
   "base_url": "https://provider-a.example.com",
   "status": "active"
 }
 ```
 
-### User
+Current note:
 
-A user is the human represented inside a provider.
+- the current API wire format still uses `provider_id`
+- the product framing is moving toward `executor`
+
+### End User
+
+An end user is the human represented inside an executor.
 
 Key fields:
 
-- `provider_id`
+- `executor_id`
 - `user_id`
 - `display_name`
 - `memory_policy`
@@ -70,24 +85,24 @@ Key fields:
 
 Important rule:
 
-`user_id` is scoped to a provider unless a higher-level shared identity is added later.
+`user_id` is scoped to an executor unless a higher-level shared identity is added later.
 
-### Provider User Context
+### Executor User Context
 
-This is the user-level Texty record for one provider/user pair.
+This is the user-level Texty record for one executor/user pair.
 
 It should store:
 
 - default model
 - memory policy
 - allowed tools
-- provider-specific preferences
+- executor-specific preferences
 - references to global memory scope
 - linked channel identities
 
 Recommended key:
 
-- `(provider_id, user_id)`
+- `(executor_id, user_id)`
 
 ### Thread
 
@@ -96,7 +111,7 @@ A thread is one conversation.
 It should store:
 
 - `thread_id`
-- `provider_id`
+- `executor_id`
 - `user_id`
 - `title`
 - `is_private`
@@ -106,7 +121,7 @@ It should store:
 
 Important rule:
 
-A thread belongs to one provider/user pair.
+A thread belongs to one executor/user pair.
 
 It may also carry channel metadata so Texty can resolve likely continuation when no `thread_id` is supplied.
 
@@ -122,7 +137,7 @@ Examples:
 
 Key fields:
 
-- `provider_id`
+- `executor_id`
 - `user_id`
 - `channel_type`
 - `channel_id`
@@ -133,7 +148,7 @@ Important rule:
 
 A channel is not a separate user.
 
-It is a linked identity or surface for the same provider/user pair.
+It is a linked identity or surface for the same executor/user pair.
 
 Its purpose is to help Texty decide which thread is most likely to continue naturally when no explicit `thread_id` is provided.
 
@@ -194,7 +209,7 @@ Global memory should be scoped by policy, not assumed to be universal.
 
 Memory policy controls what Texty may retrieve and use.
 
-It should be attached to the provider/user context.
+It should be attached to the executor/user context.
 
 Common modes:
 
@@ -216,7 +231,7 @@ Important rule:
 
 A memory scope is the bucket from which shared memory is retrieved.
 
-In the simplest case, that scope is the provider/user pair.
+In the simplest case, that scope is the executor/user pair.
 
 Later, a custom shared scope could allow controlled memory sharing across systems.
 
@@ -228,11 +243,11 @@ Key fields:
 
 ### Allowed Tool
 
-An allowed tool is one tool that Texty may consider for a specific provider/user pair.
+An allowed tool is one tool that Texty may consider for a specific executor/user pair.
 
 It should contain:
 
-- `provider_id`
+- `executor_id`
 - `tool_name`
 - `description`
 - `input_schema`
@@ -255,12 +270,12 @@ Possible rules include:
 
 ### Tool Execution Request
 
-This is the structured request Texty sends to a provider.
+This is the structured request Texty sends to an executor.
 
 It should contain:
 
 - `execution_id`
-- `provider_id`
+- `executor_id`
 - `user_id`
 - `thread_id`
 - `tool_name`
@@ -269,7 +284,7 @@ It should contain:
 
 ### Tool Execution Result
 
-This is the provider's structured response after trying to perform work.
+This is the executor's structured response after trying to perform work.
 
 It should contain:
 
@@ -282,22 +297,23 @@ It should contain:
 
 In plain terms:
 
-- one provider has many users
-- one provider/user pair can have many linked channels
-- one provider/user pair has many threads
+- one account has many executors
+- one executor has many users
+- one executor/user pair can have many linked channels
+- one executor/user pair has many threads
 - one thread has many messages
 - one thread has one thread-memory record
-- one provider/user pair has one main shared memory scope by default
-- one provider/user pair has many allowed tools
+- one executor/user pair has one main shared memory scope by default
+- one executor/user pair has many allowed tools
 
 ## Suggested Storage Keys
 
-- Provider: `provider_id`
-- Provider user context: `(provider_id, user_id)`
+- Executor: `executor_id`
+- Executor user context: `(executor_id, user_id)`
 - Thread: `thread_id`
 - Message: `message_id`
-- Shared memory: `memory_scope_id` or `(provider_id, user_id)`
-- Allowed tool: `(provider_id, user_id, tool_name)`
+- Shared memory: `memory_scope_id` or `(executor_id, user_id)`
+- Allowed tool: `(executor_id, user_id, tool_name)`
 
 ## Current vs Intended State
 
@@ -314,18 +330,19 @@ Today, the live implementation is still centered on:
 
 The intended model is:
 
-- provider-scoped users
+- executor-scoped users
 - explicit thread ownership
 - policy-scoped memory
 - synced allowed tools
-- provider-facing tool execution
+- executor-facing tool execution
 
 ## Short Version
 
 Texty's core data model is built around:
 
-- provider
-- user
+- account
+- executor
+- end user
 - thread
 - message
 - memory

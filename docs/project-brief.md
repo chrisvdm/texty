@@ -4,14 +4,14 @@
 
 Texty is a focused conversational AI interface built with RedwoodSDK and the OpenRouter API.
 
-The end goal is for Texty to be a reusable conversation layer that owns memory, threads, and interaction flow, while delegating business-side effects to external tool-execution providers.
+The end goal is for Texty to be a reusable hosted conversation layer that owns memory, threads, and interaction flow, while delegating business-side effects to external tool-execution systems.
 
 In the target architecture:
 
 - Texty owns conversation
-- providers own execution
+- executors own execution
 
-Texty should be usable by multiple provider systems, not just one product.
+Texty should be usable by multiple executor systems, not just one product.
 
 Examples:
 
@@ -19,6 +19,23 @@ Examples:
 - an app-building backend
 
 This means Texty is being designed as a general-purpose conversational front end for tools and workflows, not as a single-purpose browser chat app.
+
+## Hosted Model
+
+Texty should run as a hosted service.
+
+The simple MVP identity model is:
+
+- `account`
+  - owns billing and connected apps
+- `executor`
+  - one connected app or service
+  - receives one shared runtime token for that app/team
+- `end_user`
+  - the person talking through Texty
+
+For MVP, the runtime token is scoped per executor/app.
+It is not per teammate and not per end user.
 
 ## Target Product
 
@@ -29,7 +46,7 @@ In its intended final shape, Texty should:
 - maintain thread history and memory according to explicit memory policy
 - understand user intent
 - ask clarification questions when needed
-- decide when to answer directly and when to invoke provider-owned tools
+- decide when to answer directly and when to invoke executor-owned tools
 - return the final user-facing response
 
 Texty should not own provider-specific business logic.
@@ -73,7 +90,7 @@ Today’s codebase is a working foundation for the target architecture, not the 
 At the moment:
 
 - global memory is still browser-session scoped in important places
-- the provider-facing HTTP API is still documented direction rather than shipped runtime contract
+- the executor-facing HTTP API is still documented direction rather than shipped runtime contract in some docs, even though an MVP slice now exists
 - the web UI is still one of the main entry surfaces
 - the security model is still browser-session based rather than provider-authenticated multi-tenant service auth
 
@@ -94,9 +111,9 @@ So the repo should currently be understood as:
 - The intended long-term rule is: normal conversations are captured into memory by default, while private threads are excluded from shared memory capture.
 - Providers may then choose how much of that captured memory they actually use.
 
-## Planned Provider Model
+## Planned Executor Model
 
-Texty is intended to become provider-agnostic.
+Texty is intended to become executor-agnostic.
 
 - Texty should own:
   - conversation history
@@ -106,7 +123,7 @@ Texty is intended to become provider-agnostic.
   - command handling
   - conversational clarification
   - tool selection/orchestration
-- External providers should own:
+- External executors should own:
   - tool definitions
   - business workflows
   - side effects
@@ -115,25 +132,25 @@ Texty is intended to become provider-agnostic.
 
 The expected integration model is:
 
-1. A provider syncs a user-specific allowed toolset into Texty.
+1. An executor syncs a user-specific allowed toolset into Texty.
 2. Texty reasons over those allowed tools during a conversation.
-3. Texty invokes the provider when a tool should run.
-4. The provider executes deterministically and returns a structured result.
+3. Texty invokes the executor when a tool should run.
+4. The executor executes deterministically and returns a structured result.
 5. Texty turns that result into the user-facing reply and stores the conversation.
 
-Examples of providers:
+Examples of executors:
 
 - an automation backend
 - an app-building backend
 
-Identity, storage, and memory-policy details for that provider model are defined in `docs/architecture-foundations.md`.
+Identity, storage, and memory-policy details for that executor model are defined in `docs/architecture-foundations.md`.
 
 ## What This Project Is Not Yet
 
 - Not yet a production external API service with public auth and tenant boundaries.
 - Not yet a full retrieval-augmented chat system with embeddings or a vector store.
 - Not yet a multi-user hosted product with durable cross-device identity.
-- Not yet a completed provider runtime with tool sync and execution endpoints.
+- Not yet a completed hosted executor platform with onboarding, token issuance, and lifecycle management.
 
 ## Working Decisions So Far
 
@@ -145,9 +162,9 @@ Identity, storage, and memory-policy details for that provider model are defined
 
 ## Near-Term Priorities
 
-- Introduce a real provider API boundary so external systems can sync tools and receive tool execution requests.
+- Continue simplifying the executor API so it is easy for humans and AI-built systems to connect to.
 - Continue extracting orchestration logic out of the web UI and into the shared conversation core.
-- Define stable identity semantics for `provider`, `user`, and `memory scope`.
+- Define stable identity semantics for `account`, `executor`, `end_user`, and `memory scope`.
 - Consider streaming assistant responses.
 - Revisit prompt-context strategy once lightweight memory quality is understood in longer conversations.
 - For commercial use, upgrade memory provenance so stored facts can track multiple source threads and be removed automatically when their backing threads are deleted.
@@ -162,6 +179,7 @@ Supporting architecture references:
 - `docs/security-architecture.md`
 - `docs/conversation-lifecycle.md`
 - `docs/data-model.md`
+- `docs/ai-integration-direction.md`
 - `docs/provider-api-direction.md`
 - `docs/provider-api-spec.md`
 

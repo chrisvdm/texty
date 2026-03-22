@@ -21,6 +21,8 @@ This is the target API specification.
 
 It describes the intended service contract, not a claim that every endpoint already exists in the current runtime.
 
+If you want the simplest path to connect an external script or service first, read `docs/provider-quickstart.md` before this document.
+
 ## Authentication Model
 
 Every provider request to Texty should be authenticated.

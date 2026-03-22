@@ -9,7 +9,7 @@ That shift changes the security requirements substantially.
 Today, the app mostly protects one browser session from another.
 The end goal is to protect:
 
-- one provider from another
+- one executor from another
 - one user from another
 - one thread from another
 - private conversations from shared memory
@@ -68,14 +68,11 @@ What this does not mean:
 
 ## Target Authentication Model
 
-In the target architecture, Texty should authenticate both:
-
-- the provider system
-- the human user represented by that provider
+In the target architecture, Texty should authenticate the executor system and scope every request to the represented end user.
 
 The target request identity should always be built from:
 
-- `provider_id`
+- `executor_id`
 - `user_id`
 
 That gives Texty a stable way to decide:
@@ -87,9 +84,19 @@ That gives Texty a stable way to decide:
 
 ## Core Security Concepts
 
-### Provider
+### Account
 
-A provider is an external system that connects to Texty.
+An account owns billing and connected apps.
+
+For MVP, account administration should stay minimal:
+
+- an account can create executors
+- each executor gets one shared runtime token
+- the team working on that app shares the executor token through normal secret management
+
+### Executor
+
+An executor is an external system that connects to Texty.
 
 Examples:
 
@@ -97,18 +104,18 @@ Examples:
 - an app-building system
 - a messaging integration backend
 
-A provider is not a person.
+An executor is not a person.
 It is the system making authenticated requests to Texty.
 
-### User
+### End User
 
-A user is the human represented inside that provider.
+An end user is the human represented inside that executor.
 
-The provider tells Texty which user the request belongs to.
+The executor tells Texty which user the request belongs to.
 
 That means:
 
-- providers need their own authentication
+- executors need their own authentication
 - providers need a trusted way to assert `user_id`
 
 ### Thread
@@ -130,9 +137,9 @@ This needs to be a storage and retrieval rule, not just a user-interface label.
 
 Before Texty should be treated as a real service, these controls are necessary.
 
-### 1. Provider Authentication
+### 1. Executor Authentication
 
-Every provider must authenticate to Texty.
+Every executor must authenticate to Texty.
 
 Acceptable options:
 
@@ -142,37 +149,37 @@ Acceptable options:
 
 Texty should reject:
 
-- unauthenticated provider requests
+- unauthenticated executor requests
 - expired credentials
-- requests signed for the wrong provider
+- requests signed for the wrong executor
 
 ### 2. Tenant Isolation
 
-Texty must isolate data by provider and user.
+Texty must isolate data by executor and user.
 
-At minimum, one provider must not be able to:
+At minimum, one executor must not be able to:
 
-- read another provider's threads
-- write another provider's memory
-- sync tools for another provider
-- execute work as another provider
+- read another executor's threads
+- write another executor's memory
+- sync tools for another executor
+- execute work as another executor
 
 This is the primary tenancy boundary.
 
 ### 3. User Authorization
 
-Within a provider, requests must be scoped to the correct user.
+Within an executor, requests must be scoped to the correct user.
 
-Texty should not trust arbitrary `user_id` values without an authenticated provider context.
+Texty should not trust arbitrary `user_id` values without an authenticated executor context.
 
-The provider may define the user identity, but Texty must enforce:
+The executor may define the user identity, but Texty must enforce:
 
-- all reads are scoped to that provider/user pair
-- all writes are scoped to that provider/user pair
+- all reads are scoped to that executor/user pair
+- all writes are scoped to that executor/user pair
 
 ### 4. Thread Authorization
 
-Every request involving a thread must confirm that the thread belongs to the authenticated provider/user context.
+Every request involving a thread must confirm that the thread belongs to the authenticated executor/user context.
 
 This prevents:
 
@@ -204,7 +211,7 @@ Without this, an attacker could inject fake messages into a user's conversation.
 
 ### 7. Rate Limiting and Abuse Protection
 
-Conversation input and provider sync endpoints must be rate-limited.
+Conversation input and executor sync endpoints must be rate-limited.
 
 This protects against:
 

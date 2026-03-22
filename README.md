@@ -2,7 +2,7 @@
 
 # texty
 
-Provider-agnostic conversational interface built with RedwoodSDK and the OpenRouter API.
+Executor-agnostic conversational interface built with RedwoodSDK and the OpenRouter API.
 
 ## What Texty Is
 
@@ -19,12 +19,12 @@ Its end goal is not to be “just a chat app.” Its end goal is to be the syste
 - conversational clarification
 - tool orchestration
 
-In the target architecture, Texty talks to external providers. Those providers expose capabilities and perform side effects. Texty decides when to answer directly, when to ask follow-up questions, and when to invoke a provider-owned tool.
+In the target architecture, Texty runs as a hosted service. External executors connect to it, expose capabilities, and perform side effects. Texty decides when to answer directly, when to ask follow-up questions, and when to invoke an executor-owned tool.
 
 In short:
 
 - Texty is the conversation layer
-- providers are the execution layer
+- executors are the execution layer
 
 ## What Texty Is Today
 
@@ -41,7 +41,7 @@ Right now it includes:
 - a provider-aware conversation API
 - a shared conversation core that is being extracted away from the UI
 
-It is still an MVP slice of the larger service direction, but it now includes the first provider-facing HTTP API.
+It is still an MVP slice of the larger service direction, but it now includes the first executor-facing HTTP API.
 
 ### Project Docs
 
@@ -49,7 +49,9 @@ It is still an MVP slice of the larger service direction, but it now includes th
 - `docs/architecture-foundations.md` defines the current identity, storage, and memory-policy model.
 - `docs/conversation-lifecycle.md` explains how a turn moves through Texty from input to stored result.
 - `docs/data-model.md` defines the core entities Texty is built around.
-- `docs/provider-api-spec.md` defines the target provider-facing API contract.
+- `docs/provider-api-spec.md` defines the target executor-facing API contract. The current wire format still uses `provider_id`.
+- `docs/provider-quickstart.md` shows the smallest path for connecting an external script or service to Texty.
+- `docs/ai-integration-direction.md` explains the DX principles for making Texty easy to connect to, including for AI-built systems.
 - `docs/security-architecture.md` defines the current security position, target auth model, and required controls for a real service boundary.
 - `docs/provider-api-direction.md` captures the planned API boundary between Texty and external tool-execution providers.
 - `docs/developer-ai-guidelines.md` captures standing repo conventions and AI/developer workflow rules.
@@ -80,23 +82,23 @@ npm run dev
 
 For deployment, set `OPENROUTER_API_KEY` as a Wrangler secret and keep the other values in Wrangler vars if you want to override the defaults. Chat history is now stored per browser session in a Durable Object and survives page refreshes.
 
-### Provider Setup
+### Executor Setup
 
-Texty expects provider requests to use bearer-token authentication.
+Texty expects executor requests to use bearer-token authentication.
 
-For local development, configure provider tokens in `.dev.vars`:
+For local development, configure executor tokens in `.dev.vars`:
 
 ```shell
 TEXTY_PROVIDER_CONFIG='{"provider_a":{"token":"dev-token"}}'
 ```
 
-This lets a provider authenticate requests with:
+This lets an executor authenticate requests with:
 
 ```shell
 Authorization: Bearer dev-token
 ```
 
-If a provider also needs Texty to call back into it for tool execution, include a base URL:
+If an executor also needs Texty to call back into it for tool execution, include a base URL:
 
 ```shell
 TEXTY_PROVIDER_CONFIG='{"provider_a":{"token":"dev-token","baseUrl":"https://provider.example"}}'
@@ -123,16 +125,34 @@ The channel is used to keep recent thread continuity. If a request does not incl
 
 Normal conversations are captured into memory by default. Private threads are the exception and are excluded from shared-memory capture.
 
-### Provider Use
+### Hosted Model
 
-Providers are the systems that connect users and capabilities to Texty.
+Texty is intended to run as a hosted Cloudflare service.
 
-In the current MVP, a provider can:
+The simple MVP identity model is:
 
-- sync allowed tools for a provider/user pair
+- `account`
+  - owns billing and connected apps
+- `executor`
+  - one connected app or service
+  - gets one shared runtime token for that app/team
+- `end_user`
+  - the person talking through Texty
+
+For the current MVP, the runtime token is scoped per executor/app, not per teammate and not per end user.
+
+### Executor Use
+
+Executors are the systems that connect users and capabilities to Texty.
+
+If you want the fastest path to connect a script, workflow runner, or small external service, start with `docs/provider-quickstart.md`.
+
+In the current MVP, an executor can:
+
+- sync allowed tools for an executor/user pair
 - send normalized conversation input into Texty
 - create, list, rename, and delete threads
-- read shared memory for a provider/user pair
+- read shared memory for an executor/user pair
 - read thread memory for a specific thread
 
 The main routes are:
@@ -150,12 +170,12 @@ See `docs/provider-api-spec.md` for the request and response shapes.
 
 ### API Usage
 
-The provider API is the main way to use Texty outside the built-in web channels.
+The executor API is the main way to use Texty outside the built-in web channels.
 
-At minimum, a provider should:
+At minimum, an executor should:
 
 1. authenticate with a bearer token
-2. optionally sync allowed tools for a provider/user pair
+2. optionally sync allowed tools for an executor/user pair
 3. send normalized conversation input
 4. manage threads if it wants explicit thread control
 
@@ -248,7 +268,7 @@ curl http://localhost:5173/api/v1/providers/provider_a/users/user_123/memory \
 
 If you want a browser UI for exercising the same routes, use `/sandbox/provider`.
 
-Provider API responses now echo a `request_id` field and set an `X-Request-Id` response header. If you send your own `X-Request-Id`, Texty reuses it; otherwise Texty generates one for you.
+Executor API responses now echo a `request_id` field and set an `X-Request-Id` response header. If you send your own `X-Request-Id`, Texty reuses it; otherwise Texty generates one for you.
 
 Write routes also support `Idempotency-Key`. If the same key is retried with the same request body, Texty replays the original response instead of performing the write again. If the same key is reused with a different body, Texty returns `409`.
 
@@ -260,7 +280,7 @@ Tool execution states currently recognized by Texty are:
 - `in_progress`
 - `failed`
 
-Conversation input is also rate-limited per provider/user pair. The current MVP limit is `30` conversation requests per `60` seconds. Rate-limited requests return `429` with a `Retry-After` header.
+Conversation input is also rate-limited per executor/user pair. The current MVP limit is `30` conversation requests per `60` seconds. Rate-limited requests return `429` with a `Retry-After` header.
 
 ### Sandbox Routes
 
