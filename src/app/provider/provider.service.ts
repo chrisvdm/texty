@@ -123,6 +123,24 @@ const getRequestTimeZone = (timeZone?: string | null) =>
 
 export const WEB_PROVIDER_ID = "texty_web";
 
+const providerEnv = env as typeof env & {
+  AI?: {
+    run: (model: string, inputs: Record<string, unknown>) => Promise<unknown>;
+  };
+  CLOUDFLARE_DECISION_MODEL?: string;
+  OPENROUTER_DECISION_MODEL?: string;
+  OPENROUTER_ROUTER_MODEL?: string;
+};
+
+const getCloudflareDecisionModel = () =>
+  providerEnv.CLOUDFLARE_DECISION_MODEL?.trim() ||
+  "@cf/meta/llama-3.1-8b-instruct-fast";
+
+const getOpenRouterDecisionModel = () =>
+  providerEnv.OPENROUTER_DECISION_MODEL?.trim() ||
+  providerEnv.OPENROUTER_ROUTER_MODEL?.trim() ||
+  DEFAULT_MODEL;
+
 const sortThreadsByRecency = (threads: ChatThreadSummary[]) =>
   [...threads].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 
@@ -410,6 +428,78 @@ const callOpenRouter = async ({
   return content;
 };
 
+const extractCloudflareAiText = (payload: unknown): string | null => {
+  if (typeof payload === "string" && payload.trim()) {
+    return payload.trim();
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const value = payload as {
+    response?: unknown;
+    result?: { response?: unknown };
+  };
+
+  if (typeof value.response === "string" && value.response.trim()) {
+    return value.response.trim();
+  }
+
+  if (
+    value.result &&
+    typeof value.result === "object" &&
+    typeof value.result.response === "string" &&
+    value.result.response.trim()
+  ) {
+    return value.result.response.trim();
+  }
+
+  return null;
+};
+
+const callDecisionModel = async ({
+  messages,
+  timeZone,
+}: {
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+  timeZone?: string | null;
+}) => {
+  if (providerEnv.AI) {
+    try {
+      const payload = await providerEnv.AI.run(getCloudflareDecisionModel(), {
+        messages: [
+          {
+            role: "system",
+            content: SYSTEM_PROMPT,
+          },
+          {
+            role: "system",
+            content: createDateTimeSystemPrompt({ timeZone }),
+          },
+          ...messages,
+        ],
+        max_tokens: 300,
+        temperature: 0.1,
+      });
+
+      const content = extractCloudflareAiText(payload);
+
+      if (content) {
+        return content;
+      }
+    } catch (error) {
+      console.warn("Cloudflare AI decision model failed, falling back to OpenRouter.", error);
+    }
+  }
+
+  return callOpenRouter({
+    model: getOpenRouterDecisionModel(),
+    timeZone,
+    messages,
+  });
+};
+
 const formatAllowedTools = (tools: AllowedTool[]) => {
   if (tools.length === 0) {
     return "(none)";
@@ -431,19 +521,19 @@ const decideConversationAction = async ({
   messages,
   memoryContext,
   tools,
-  model,
+  replyModel,
   timeZone,
 }: {
   content: string;
   messages: ChatMessage[];
   memoryContext: string | null;
   tools: AllowedTool[];
-  model: string;
+  replyModel: string;
   timeZone?: string | null;
 }) => {
   if (tools.filter((tool) => tool.status === "active").length === 0) {
     const reply = await callOpenRouter({
-      model,
+      model: replyModel,
       timeZone,
       messages: [
         ...(memoryContext
@@ -464,8 +554,7 @@ const decideConversationAction = async ({
     } satisfies ConversationDecision;
   }
 
-  const decision = await callOpenRouter({
-    model,
+  const decision = await callDecisionModel({
     timeZone,
     messages: [
       {
@@ -1051,7 +1140,7 @@ export const handleProviderConversationInput = async ({
     messages: currentState.messages,
     memoryContext,
     tools: currentContext.allowedTools,
-    model,
+    replyModel: model,
     timeZone,
   });
 

@@ -269,6 +269,13 @@ This is mostly useful for admin tools, debug screens, or a UI that wants to show
 - input is rate-limited per executor/user pair
 - normal conversations are captured into memory by default
 - private threads are excluded from shared-memory capture and retrieval
+- Texty can use Cloudflare Workers AI for the routing step before executor handoff
+
+Optional routing model setting:
+
+- `CLOUDFLARE_DECISION_MODEL`
+  - use this to choose the Workers AI model for routing and intent decisions
+  - if unset, Texty uses `@cf/meta/llama-3.1-8b-instruct-fast`
 
 Execution states:
 
