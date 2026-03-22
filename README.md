@@ -50,13 +50,13 @@ Every message goes through the same first step:
 
 1. A user sends input to Texty.
 2. Texty loads the relevant thread and memory.
-3. Texty decides which path the message belongs to.
+3. Texty decides what kind of response is needed.
 
-There are then three main paths:
+There are then three main outcomes:
 
 ### 1. Direct reply
 
-Use this when Texty can answer on its own.
+This happens when Texty can answer on its own.
 
 Example:
 
@@ -70,9 +70,9 @@ Why it matters:
 - no executor call
 - best for conversational continuity
 
-### 2. Clarification
+### 2. Follow-up question
 
-Use this when the user is asking for something real, but the request is missing important details.
+This happens when the request is real, but important details are missing.
 
 Example:
 
@@ -87,7 +87,7 @@ Why it matters:
 
 ### 3. Executor handoff
 
-Use this when actual work needs to happen outside Texty.
+This happens when work needs to be done outside Texty.
 
 Example:
 
