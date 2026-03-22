@@ -32,6 +32,8 @@ So yes, the folder is there to be copied, run, and adapted.
 
 - `server.mjs`
   - tiny local HTTP server using only Node built-ins
+- `index.html`
+  - the small local browser UI shown at `http://localhost:8787`
 - `texty.json`
   - example manifest shape for this executor
 
