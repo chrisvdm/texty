@@ -2,7 +2,7 @@
 
 # texty
 
-/coming soon.../
+_coming soon..._
 
 Texty is a hosted conversation layer for executable systems.
 
