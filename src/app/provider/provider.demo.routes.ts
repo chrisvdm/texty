@@ -58,7 +58,8 @@ const renderHomePage = (origin: string) =>
     .replaceAll("__TEXTY_BASE_URL__", origin)
     .replaceAll("__PROVIDER_ID__", DEMO_EXECUTOR_ID)
     .replaceAll("__USER_ID__", DEMO_USER_ID)
-    .replaceAll("__PLAYGROUND_PATH__", "/sandbox/demo-executor/playground/texty");
+    .replaceAll("__PLAYGROUND_PATH__", "/sandbox/demo-executor/playground/texty")
+    .replaceAll("__PLAYGROUND_MODE__", "direct");
 
 const unauthorized = () =>
   Response.json(

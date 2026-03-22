@@ -244,6 +244,7 @@
       const providerIdEl = document.getElementById("providerId");
       const userIdEl = document.getElementById("userId");
       const playgroundPath = "__PLAYGROUND_PATH__";
+      const playgroundMode = "__PLAYGROUND_MODE__";
 
       const renderResult = (value) => {
         resultEl.textContent = JSON.stringify(value, null, 2);
@@ -265,6 +266,91 @@
         return {
           status: response.status,
           body: await response.json()
+        };
+      };
+
+      const callTextyDirectly = async ({ token, text, userId, baseUrl, providerId }) => {
+        const trimmedBaseUrl = baseUrl.replace(/\/$/, "");
+        const syncRequest = {
+          url: trimmedBaseUrl + "/api/v1/providers/" + providerId + "/users/" + userId + "/tools/sync",
+          body: {
+            provider_id: providerId,
+            user_id: userId,
+            tools: [
+              {
+                tool_name: "notes.echo",
+                description: "Save a short note. Use this only when the user clearly asks to save or add a note. The note field should contain only the note text itself, not instruction words.",
+                input_schema: {
+                  type: "object",
+                  properties: {
+                    note: {
+                      type: "string",
+                      description: "Only the note content, for example wash hair. Do not include phrases like add to note or save this note."
+                    }
+                  },
+                  required: ["note"]
+                },
+                status: "active"
+              }
+            ]
+          }
+        };
+
+        const inputRequest = {
+          url: trimmedBaseUrl + "/api/v1/input",
+          body: {
+            provider_id: providerId,
+            user_id: userId,
+            input: {
+              kind: "text",
+              text
+            },
+            channel: {
+              type: "web",
+              id: "minimal-executor-playground"
+            }
+          }
+        };
+
+        const headers = {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        };
+
+        const syncResponse = await fetch(syncRequest.url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(syncRequest.body)
+        });
+
+        const syncResult = {
+          status: syncResponse.status,
+          body: await syncResponse.json()
+        };
+
+        const inputResponse = await fetch(inputRequest.url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(inputRequest.body)
+        });
+
+        const inputResult = {
+          status: inputResponse.status,
+          body: await inputResponse.json()
+        };
+
+        return {
+          ok: true,
+          demo_identity: {
+            executor_id: providerId,
+            user_id: userId
+          },
+          observed: {
+            sync_status: syncResult.status,
+            sync_response: syncResult.body,
+            input_status: inputResult.status,
+            input_response: inputResult.body
+          }
         };
       };
 
@@ -306,7 +392,15 @@
         resultEl.textContent = "Loading...";
 
         try {
-          const result = await callEndpoint(playgroundPath, payload);
+          const result = playgroundMode === "proxy"
+            ? await callEndpoint(playgroundPath, payload)
+            : await callTextyDirectly({
+                token: tokenEl.value,
+                text: textEl.value,
+                userId: userIdEl.value,
+                baseUrl: textyBaseUrlEl.value,
+                providerId: providerIdEl.value
+              });
           renderResult(result);
         } catch (error) {
           renderResult({
