@@ -2,8 +2,6 @@ import { render, route } from "rwsdk/router";
 import { defineApp } from "rwsdk/worker";
 
 import { ChatSessionDurableObject } from "@/app/chat/chat-session-do";
-import { createInitialChatState } from "@/app/chat/shared";
-import { saveChatSession } from "@/app/chat/chat.storage";
 import { Document } from "@/app/document";
 import { setCommonHeaders } from "@/app/headers";
 import { Debug } from "@/app/pages/debug";
@@ -57,7 +55,6 @@ export default defineApp([
     const threadId = crypto.randomUUID();
     const session = createBrowserSession(threadId);
 
-    await saveChatSession(threadId, createInitialChatState());
     await browserSessionStore.save(response.headers, session, { maxAge: true });
 
     ctx.session = session;

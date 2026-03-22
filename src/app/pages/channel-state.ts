@@ -39,9 +39,5 @@ export const loadBrowserChannelState = async ({
       type: channelType,
       id: browserUserId,
     },
-    fallbackThreadId: session.activeThreadId,
-    fallbackGlobalMemory: session.globalMemory,
-    fallbackThreads: session.threads,
-    fallbackModel: session.selectedModel,
   });
 };

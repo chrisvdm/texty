@@ -883,46 +883,17 @@ export const getProviderHydratedState = async ({
   providerId,
   userId,
   channel,
-  fallbackThreadId,
-  fallbackGlobalMemory,
-  fallbackThreads,
-  fallbackModel,
 }: {
   providerId: string;
   userId: string;
   channel: ProviderChannelInput;
-  fallbackThreadId?: string;
-  fallbackGlobalMemory?: ProviderUserContext["globalMemory"];
-  fallbackThreads?: ChatThreadSummary[];
-  fallbackModel?: string;
 }) => {
   let context = await loadOrCreateProviderUserContext({ providerId, userId });
   const channelKey = buildChannelKey(channel);
   const channelState = context.channels[channelKey];
 
-  if (context.threads.length === 0 && fallbackThreads && fallbackThreads.length > 0) {
-    context = await saveProviderUserContext({
-      ...context,
-      selectedModel: fallbackModel || context.selectedModel,
-      globalMemory: fallbackGlobalMemory || context.globalMemory,
-      threads: fallbackThreads,
-      channels: {
-        ...context.channels,
-        [channelKey]: {
-          type: channel.type,
-          id: channel.id,
-          lastActiveThreadId: fallbackThreadId || fallbackThreads[0]?.id || null,
-          updatedAt: new Date().toISOString(),
-        },
-      },
-    });
-  }
-
   let activeThreadId =
-    channelState?.lastActiveThreadId ||
-    fallbackThreadId ||
-    context.threads[0]?.id ||
-    null;
+    channelState?.lastActiveThreadId || context.threads[0]?.id || null;
 
   if (!activeThreadId) {
     const created = await createThreadForContext({
