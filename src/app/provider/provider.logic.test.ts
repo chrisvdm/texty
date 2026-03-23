@@ -7,6 +7,7 @@ import {
   applyConversationRateLimit,
   clampDecisionConfidence,
   determineMockExecutionState,
+  extractPendingToolConfirmationRemainder,
   extractToolStringValue,
   getToolDecisionConfidenceAction,
   interpretPendingToolConfirmation,
@@ -153,6 +154,15 @@ test("decision confidence is clamped into the valid range", () => {
 test("pending tool confirmation recognizes yes-like replies", () => {
   assert.equal(interpretPendingToolConfirmation("yes"), "confirm");
   assert.equal(interpretPendingToolConfirmation("go ahead"), "confirm");
+});
+
+test("pending tool confirmation can keep extra text after confirmation", () => {
+  assert.equal(
+    extractPendingToolConfirmationRemainder(
+      "yes thanks. I also need to buy him a birthday present",
+    ),
+    "I also need to buy him a birthday present",
+  );
 });
 
 test("pending tool confirmation recognizes no-like replies", () => {

@@ -12,6 +12,8 @@ const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
 const homePageTemplate = readFileSync(join(currentDir, "index.html"), "utf8");
 const todoStore = new Map();
+const todoItemVerbPattern =
+  /^(call|email|buy|send|pay|book|schedule|cancel|renew|reply|write|pick up|pickup|drop off|follow up|text|message|plan|order|get)\b/i;
 
 const renderHomePage = () =>
   homePageTemplate
@@ -73,6 +75,24 @@ const normalizeTodo = (value) => {
   }
 
   return todo;
+};
+
+const splitTodoItems = (todo) => {
+  const normalized = todo
+    .replace(/\b(?:to do|todo)\s+list\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const parts = normalized
+    .split(/\s*(?:,|;|\band\b)\s*/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length > 1 && parts.every((part) => todoItemVerbPattern.test(part))) {
+    return parts;
+  }
+
+  return [normalized];
 };
 
 const getTodosForUser = (userId) => [...(todoStore.get(userId) ?? [])];
@@ -297,8 +317,9 @@ const server = createServer(async (request, response) => {
 
   const userId = String(payload.user_id || defaultUserId).trim();
   const todo = normalizeTodo(payload.arguments?.todo);
+  const todoItems = todo ? splitTodoItems(todo) : [];
 
-  if (!todo) {
+  if (todoItems.length === 0) {
     sendJson(response, 200, {
       ok: true,
       state: "needs_clarification",
@@ -309,18 +330,26 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  const todos = addTodoForUser({
-    userId,
-    todo,
-  });
+  let todos = getTodosForUser(userId);
+
+  for (const todoItem of todoItems) {
+    todos = addTodoForUser({
+      userId,
+      todo: todoItem,
+    });
+  }
 
   sendJson(response, 200, {
     ok: true,
     state: "completed",
     result: {
-      summary: `Added "${todo}" to the todo list.`,
+      summary:
+        todoItems.length === 1
+          ? `Added "${todoItems[0]}" to the todo list.`
+          : `Added ${todoItems.length} items to the todo list: ${todoItems.join(", ")}.`,
       data: {
-        added_todo: todo,
+        added_todo: todoItems[0],
+        added_todos: todoItems,
         todos,
       },
     },

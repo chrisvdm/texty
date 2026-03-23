@@ -44,6 +44,7 @@ import {
   clampDecisionConfidence,
   CONVERSATION_RATE_LIMIT_MAX_REQUESTS,
   CONVERSATION_RATE_LIMIT_WINDOW_MS,
+  extractPendingToolConfirmationRemainder,
   extractToolStringValue,
   getToolDecisionConfidenceAction,
   interpretPendingToolConfirmation,
@@ -652,6 +653,40 @@ const getSingleActiveTool = (tools: AllowedTool[]) => {
   return activeTools.length === 1 ? activeTools[0] : null;
 };
 
+const TODO_LEADING_VERB_PATTERN =
+  /^(call|email|buy|send|pay|book|schedule|cancel|renew|reply|write|pick up|pickup|drop off|follow up|text|message|plan|order|get)\b/i;
+
+const looksLikeTodoClause = (value: string) => TODO_LEADING_VERB_PATTERN.test(value.trim());
+
+const extractExplicitTodoCandidate = (content: string) => {
+  const trimmed = content.trim();
+
+  if (!trimmed || trimmed.includes("?")) {
+    return null;
+  }
+
+  const patterns = [
+    /^(?:please\s+)?add\s+(.+?)\s+(?:to|into|in)\s+(?:my\s+)?(?:to do|todo)\s+list$/i,
+    /^(?:please\s+)?add\s+(.+?)\s+(?:to|into|in)\s+(?:my\s+)?todos?$/i,
+    /^(?:please\s+)?(?:remember|remind me)\s+to\s+(.+)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    const candidate = match?.[1]?.trim();
+
+    if (candidate) {
+      return candidate.replace(/[.?!]+$/, "").trim();
+    }
+  }
+
+  if (looksLikeTodoClause(trimmed)) {
+    return trimmed.replace(/[.?!]+$/, "").trim();
+  }
+
+  return null;
+};
+
 const extractImplicitTodoCandidate = (content: string) => {
   const trimmed = content.trim();
 
@@ -671,6 +706,50 @@ const extractImplicitTodoCandidate = (content: string) => {
     if (candidate) {
       return candidate.replace(/[.?!]+$/, "").trim();
     }
+  }
+
+  return null;
+};
+
+const getTodoHeuristicDecision = ({
+  tool,
+  content,
+}: {
+  tool: AllowedTool | null;
+  content: string;
+}) => {
+  if (tool?.toolName !== "todos.add") {
+    return null;
+  }
+
+  const explicitTodo = extractExplicitTodoCandidate(content);
+
+  if (explicitTodo) {
+    return {
+      action: "tool_call" as const,
+      tool_name: tool.toolName,
+      arguments: {
+        todo: explicitTodo,
+      },
+      confidence: 0.9,
+      reasoning:
+        "The user directly stated one or more task phrases, so Texty should add them to the todo list.",
+    };
+  }
+
+  const implicitTodo = extractImplicitTodoCandidate(content);
+
+  if (implicitTodo) {
+    return {
+      action: "tool_call" as const,
+      tool_name: tool.toolName,
+      arguments: {
+        todo: implicitTodo,
+      },
+      confidence: 0.65,
+      reasoning:
+        "The user described a likely personal task using implicit task language, so Texty should confirm whether it belongs on the todo list.",
+    };
   }
 
   return null;
@@ -746,22 +825,13 @@ const decideConversationAction = async ({
   }
 
   const singleActiveTool = getSingleActiveTool(tools);
+  const todoHeuristicDecision = getTodoHeuristicDecision({
+    tool: singleActiveTool,
+    content,
+  });
 
-  if (singleActiveTool?.toolName === "todos.add") {
-    const implicitTodo = extractImplicitTodoCandidate(content);
-
-    if (implicitTodo) {
-      return {
-        action: "tool_call",
-        tool_name: singleActiveTool.toolName,
-        arguments: {
-          todo: implicitTodo,
-        },
-        confidence: 0.65,
-        reasoning:
-          "The user described a likely personal task using implicit task language, so Texty should confirm whether it belongs on the todo list.",
-      } satisfies ConversationDecision;
-    }
+  if (todoHeuristicDecision) {
+    return todoHeuristicDecision satisfies ConversationDecision;
   }
 
   const decision = await callDecisionModel({
@@ -1538,6 +1608,34 @@ export const handleProviderConversationInput = async ({
         assistantContent = execution.message;
         action = "tool_call";
         executionState = execution.state;
+
+        const confirmationRemainder =
+          pendingTool?.toolName === "todos.add"
+            ? extractPendingToolConfirmationRemainder(content)
+            : "";
+
+        if (confirmationRemainder && pendingTool) {
+          const followOnDecision = getTodoHeuristicDecision({
+            tool: pendingTool,
+            content: confirmationRemainder,
+          });
+
+          if (followOnDecision?.action === "tool_call") {
+            const followOnExecution = await executeProviderTool({
+              providerConfig,
+              providerId: input.provider_id,
+              userId: input.user_id,
+              threadId,
+              toolName: followOnDecision.tool_name,
+              args: followOnDecision.arguments,
+              requestId,
+            });
+
+            assistantContent = `${execution.message} ${followOnExecution.message}`.trim();
+            executionState =
+              execution.state === "failed" ? execution.state : followOnExecution.state;
+          }
+        }
 
         logProviderAudit({
           event: "provider.tool.executed",

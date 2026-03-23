@@ -88,6 +88,36 @@ export const interpretPendingToolConfirmation = (input: string) => {
   return "unknown" as const;
 };
 
+export const extractPendingToolConfirmationRemainder = (input: string) => {
+  const trimmed = input.trim();
+  const normalized = trimmed.toLowerCase();
+
+  for (const phrase of CONFIRM_WORDS) {
+    if (normalized === phrase) {
+      return "";
+    }
+
+    if (
+      normalized.startsWith(`${phrase} `) ||
+      normalized.startsWith(`${phrase},`) ||
+      normalized.startsWith(`${phrase}.`) ||
+      normalized.startsWith(`${phrase}!`)
+    ) {
+      const remainder = trimmed.slice(phrase.length).trim();
+
+      return remainder
+        .replace(/^[\s,!.:-]+/, "")
+        .replace(
+          /^(?:thanks|thank you|please|pls|ok|okay|sure)\b[\s,!.:-]*/i,
+          "",
+        )
+        .trim();
+    }
+  }
+
+  return "";
+};
+
 export const extractToolStringValue = ({
   content,
   fieldName,
