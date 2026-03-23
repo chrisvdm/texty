@@ -71,16 +71,19 @@ type ConversationDecision =
   | {
       action: "direct_reply";
       reply: string;
+      reasoning?: string;
     }
   | {
       action: "clarification";
       question: string;
+      reasoning?: string;
     }
   | {
       action: "tool_call";
       tool_name: string;
       arguments: Record<string, unknown>;
       confidence?: number;
+      reasoning?: string;
     }
   | {
       action: "tool_follow_up";
@@ -88,6 +91,7 @@ type ConversationDecision =
       arguments: Record<string, unknown>;
       question: string;
       confidence?: number;
+      reasoning?: string;
     };
 
 type RawConversationDecision = {
@@ -391,6 +395,11 @@ const normalizeNullableModelText = (value: unknown) => {
   }
 
   return trimmed;
+};
+
+const buildDecisionReasoning = (value: unknown) => {
+  const normalized = normalizeNullableModelText(value);
+  return normalized || null;
 };
 
 const enforceConversationRateLimit = ({
@@ -751,12 +760,14 @@ const decideConversationAction = async ({
 
   const requestedTool = typeof parsed.tool === "string" ? parsed.tool.trim() : "";
   const followUp = normalizeNullableModelText(parsed.follow_up ?? parsed.followUp);
+  const reasoning = buildDecisionReasoning(parsed.reasoning);
 
   if (!requestedTool || requestedTool.toLowerCase() === "none") {
     if (followUp) {
       return {
         action: "clarification",
         question: followUp,
+        reasoning: reasoning ?? undefined,
       } satisfies ConversationDecision;
     }
 
@@ -768,6 +779,7 @@ const decideConversationAction = async ({
         reply && reply.length > 0
           ? reply
           : "I understand. Tell me what you want me to do.",
+      reasoning: reasoning ?? undefined,
     } satisfies ConversationDecision;
   }
 
@@ -779,6 +791,7 @@ const decideConversationAction = async ({
       question:
         followUp ||
         "I could not match that request to an available tool. Can you say more about what you want me to do?",
+      reasoning: reasoning ?? undefined,
     } satisfies ConversationDecision;
   }
 
@@ -794,6 +807,7 @@ const decideConversationAction = async ({
             : {},
       question: followUp,
       confidence: clampDecisionConfidence(parsed.confidence),
+      reasoning: reasoning ?? undefined,
     } satisfies ConversationDecision;
   }
 
@@ -807,6 +821,7 @@ const decideConversationAction = async ({
           ? parsed.data
           : {},
     confidence: clampDecisionConfidence(parsed.confidence),
+    reasoning: reasoning ?? undefined,
   } satisfies ConversationDecision;
 };
 
@@ -1444,6 +1459,7 @@ export const handleProviderConversationInput = async ({
     | "command" = "direct_reply";
   let executionState: ProviderExecutionState | undefined;
   let pendingToolConfirmation: PendingToolConfirmation | null = null;
+  let decisionReasoning: string | null = null;
 
   if (currentState.pendingToolConfirmation) {
     const pendingTool = currentContext.allowedTools.find(
@@ -1555,6 +1571,7 @@ export const handleProviderConversationInput = async ({
       replyModel: model,
       timeZone,
     });
+    decisionReasoning = decision.reasoning ?? null;
 
     if (decision.action === "direct_reply") {
       assistantContent = decision.reply;
@@ -1704,6 +1721,7 @@ export const handleProviderConversationInput = async ({
         pendingToolConfirmation,
       }),
       content: assistantContent,
+      reasoning: decisionReasoning,
       task_status:
         executionState ?? (action === "tool_call" ? "completed" : null),
     },

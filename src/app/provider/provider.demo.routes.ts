@@ -103,7 +103,7 @@ const extractAssistantReply = (inputResponse: Record<string, unknown>) => {
 
 const extractTask = (inputResponse: Record<string, unknown>) => {
   const response = inputResponse.response as
-    | { type?: unknown; task_status?: unknown }
+    | { type?: unknown; task_status?: unknown; reasoning?: unknown }
     | undefined;
 
   if (!response || typeof response !== "object") {
@@ -112,6 +112,7 @@ const extractTask = (inputResponse: Record<string, unknown>) => {
         typeof inputResponse.thread_id === "string" ? inputResponse.thread_id : null,
       action: null,
       execution_state: null,
+      reasoning: null,
     };
   }
 
@@ -121,6 +122,8 @@ const extractTask = (inputResponse: Record<string, unknown>) => {
     action: typeof response.type === "string" ? response.type : null,
     execution_state:
       typeof response.task_status === "string" ? response.task_status : null,
+    reasoning:
+      typeof response.reasoning === "string" ? response.reasoning : null,
   };
 };
 

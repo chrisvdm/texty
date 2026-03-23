@@ -460,11 +460,15 @@
       const renderStatus = (task, assistantReply) => {
         const action = task && task.action ? task.action : "none";
         const executionState = task && task.execution_state ? task.execution_state : "none";
+        const reasoning = task && task.reasoning ? task.reasoning : null;
 
         statusCardEl.innerHTML = [
           "<strong>Latest task</strong>",
           "<div class=\"muted\" style=\"margin-top: 6px;\">Action: <code>" + action + "</code></div>",
           "<div class=\"muted\">Execution: <code>" + executionState + "</code></div>",
+          reasoning
+            ? "<div class=\"muted\" style=\"margin-top: 8px;\">Reasoning: " + reasoning.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</div>"
+            : "",
           assistantReply
             ? "<div class=\"muted\" style=\"margin-top: 8px;\">Assistant reply: " + assistantReply.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</div>"
             : ""
