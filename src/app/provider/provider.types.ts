@@ -101,3 +101,9 @@ export type ProviderExecutionState =
   | "accepted"
   | "in_progress"
   | "failed";
+
+export type ProviderConversationResponseKind =
+  | "chat"
+  | "follow_up"
+  | "confirmation"
+  | "task_result";

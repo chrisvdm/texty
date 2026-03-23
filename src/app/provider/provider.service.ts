@@ -32,6 +32,7 @@ import type {
   ProviderChannelInput,
   ProviderConfig,
   ProviderConversationInput,
+  ProviderConversationResponseKind,
   ProviderExecutionState,
   ProviderToolSyncInput,
   ProviderUserContext,
@@ -908,6 +909,28 @@ const scheduleBackgroundTask = (task: Promise<unknown>) => {
   }
 };
 
+const getConversationResponseKind = ({
+  action,
+  executionState,
+  pendingToolConfirmation,
+}: {
+  action: "direct_reply" | "clarification" | "tool_call" | "command";
+  executionState?: ProviderExecutionState;
+  pendingToolConfirmation: PendingToolConfirmation | null;
+}): ProviderConversationResponseKind => {
+  if (action === "tool_call") {
+    return "task_result";
+  }
+
+  if (action === "clarification") {
+    return pendingToolConfirmation?.mode === "confirmation"
+      ? "confirmation"
+      : "follow_up";
+  }
+
+  return "chat";
+};
+
 const appendMessagesToThread = async ({
   threadId,
   messages,
@@ -1665,15 +1688,15 @@ export const handleProviderConversationInput = async ({
     provider_id: input.provider_id,
     user_id: input.user_id,
     thread_id: threadId,
-    messages: withAssistant.messages.map((message) => ({
-      message_id: message.id,
-      role: message.role,
-      content: message.content,
-      created_at: message.createdAt,
-    })),
-    action: {
-      type: action,
-      execution_state: executionState ?? (action === "tool_call" ? "completed" : null),
+    response: {
+      type: getConversationResponseKind({
+        action,
+        executionState,
+        pendingToolConfirmation,
+      }),
+      content: assistantContent,
+      task_status:
+        executionState ?? (action === "tool_call" ? "completed" : null),
     },
     model: model || finalContext.selectedModel,
   };

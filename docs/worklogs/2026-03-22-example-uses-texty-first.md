@@ -51,3 +51,5 @@ Follow-up change:
   - `/sandbox/demo-executor/tools/execute`
 - moved built-in demo tool execution onto an internal execution path to avoid
   the worker HTTP-fetching itself during the public demo flow
+- hardened the demo note tool so `null` and `undefined` note values now become
+  a clarification instead of being saved or surfaced back as literal text

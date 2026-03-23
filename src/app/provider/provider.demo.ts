@@ -3,6 +3,20 @@ export const BUILT_IN_DEMO_TOKEN = "dev-token";
 export const BUILT_IN_DEMO_USER_ID = "demo_user";
 export const BUILT_IN_DEMO_CHANNEL_ID = "minimal-executor-playground";
 
+const normalizeDemoNote = (value: unknown) => {
+  const note = typeof value === "string" ? value.trim() : "";
+
+  if (!note) {
+    return "";
+  }
+
+  if (note.toLowerCase() === "null" || note.toLowerCase() === "undefined") {
+    return "";
+  }
+
+  return note;
+};
+
 export const executeBuiltInDemoTool = ({
   toolName,
   args,
@@ -18,7 +32,7 @@ export const executeBuiltInDemoTool = ({
     };
   }
 
-  const note = String(args.note || "").trim();
+  const note = normalizeDemoNote(args.note);
 
   if (!note) {
     return {

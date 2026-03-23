@@ -60,6 +60,20 @@ const buildInputBody = (userId, text) => ({
   },
 });
 
+const normalizeDemoNote = (value) => {
+  const note = typeof value === "string" ? value.trim() : "";
+
+  if (!note) {
+    return "";
+  }
+
+  if (note.toLowerCase() === "null" || note.toLowerCase() === "undefined") {
+    return "";
+  }
+
+  return note;
+};
+
 const sendJson = (response, status, body) => {
   response.writeHead(status, {
     "Content-Type": "application/json",
@@ -253,7 +267,7 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  const note = String(payload.arguments?.note || "").trim();
+  const note = normalizeDemoNote(payload.arguments?.note);
 
   if (!note) {
     sendJson(response, 200, {
