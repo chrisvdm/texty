@@ -184,16 +184,35 @@ const providerEnv = env as typeof env & {
     run: (model: string, inputs: Record<string, unknown>) => Promise<unknown>;
   };
   CLOUDFLARE_DECISION_MODEL?: string;
+  CLOUDFLARE_ROUTING_MODEL?: string;
+  CLOUDFLARE_EXTRACTION_MODEL?: string;
   TEXTY_USE_WORKERS_AI_ROUTING?: string;
   OPENROUTER_DECISION_MODEL?: string;
+  OPENROUTER_ROUTING_MODEL?: string;
+  OPENROUTER_EXTRACTION_MODEL?: string;
   OPENROUTER_ROUTER_MODEL?: string;
 };
 
-const getCloudflareDecisionModel = () =>
+const getCloudflareRoutingModel = () =>
+  providerEnv.CLOUDFLARE_ROUTING_MODEL?.trim() ||
   providerEnv.CLOUDFLARE_DECISION_MODEL?.trim() ||
   "@cf/meta/llama-3.1-8b-instruct-fast";
 
-const getOpenRouterDecisionModel = () =>
+const getCloudflareExtractionModel = () =>
+  providerEnv.CLOUDFLARE_EXTRACTION_MODEL?.trim() ||
+  providerEnv.CLOUDFLARE_ROUTING_MODEL?.trim() ||
+  providerEnv.CLOUDFLARE_DECISION_MODEL?.trim() ||
+  "@cf/qwen/qwen3-30b-a3b-fp8";
+
+const getOpenRouterRoutingModel = () =>
+  providerEnv.OPENROUTER_ROUTING_MODEL?.trim() ||
+  providerEnv.OPENROUTER_DECISION_MODEL?.trim() ||
+  providerEnv.OPENROUTER_ROUTER_MODEL?.trim() ||
+  DEFAULT_MODEL;
+
+const getOpenRouterExtractionModel = () =>
+  providerEnv.OPENROUTER_EXTRACTION_MODEL?.trim() ||
+  providerEnv.OPENROUTER_ROUTING_MODEL?.trim() ||
   providerEnv.OPENROUTER_DECISION_MODEL?.trim() ||
   providerEnv.OPENROUTER_ROUTER_MODEL?.trim() ||
   DEFAULT_MODEL;
@@ -263,6 +282,68 @@ const scoreThreadFit = ({
   return matches / Math.max(contentTokens.size, 1);
 };
 
+const extractIntroducedName = (content: string) => {
+  const match = content
+    .trim()
+    .match(/^(?:(?:hi|hello|hey)[,!\s]+)?(?:my name is|i am|i'm)\s+([a-z][a-z' -]{0,40})[.?!]*$/i);
+
+  if (!match?.[1]) {
+    return null;
+  }
+
+  const normalized = match[1]
+    .trim()
+    .split(/\s+/)
+    .map((part) =>
+      part ? `${part.charAt(0).toUpperCase()}${part.slice(1).toLowerCase()}` : "",
+    )
+    .filter(Boolean)
+    .join(" ");
+
+  return normalized || null;
+};
+
+const buildDirectReply = async ({
+  content,
+  messages,
+  memoryContext,
+  replyModel,
+  timeZone,
+}: {
+  content: string;
+  messages: ChatMessage[];
+  memoryContext: string | null;
+  replyModel: string;
+  timeZone?: string | null;
+}) => {
+  const introducedName = extractIntroducedName(content);
+
+  if (introducedName) {
+    return `Hi ${introducedName}, pleased to meet you.`;
+  }
+
+  return callOpenRouter({
+    model: replyModel,
+    timeZone,
+    messages: [
+      {
+        role: "system" as const,
+        content:
+          "You are Texty. Reply directly to the user in a brief, natural, human-facing way. Do not describe tool-selection reasoning or internal decision logic.",
+      },
+      ...(memoryContext
+        ? [
+            {
+              role: "system" as const,
+              content: memoryContext,
+            },
+          ]
+        : []),
+      ...buildPromptContext([...messages, createUserMessage(content)]),
+    ],
+  });
+};
+
 const shouldReuseChannelThread = async ({
   content,
   context,
@@ -281,6 +362,10 @@ const shouldReuseChannelThread = async ({
   const session = await loadChatSession(threadId);
 
   if (session.messages.length === 0) {
+    return true;
+  }
+
+  if (session.pendingToolConfirmation) {
     return true;
   }
 
@@ -544,13 +629,19 @@ const extractCloudflareAiText = (payload: unknown): string | null => {
 const callDecisionModel = async ({
   messages,
   timeZone,
+  stage = "routing",
 }: {
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   timeZone?: string | null;
+  stage?: "routing" | "extraction";
 }) => {
   if (providerEnv.AI && shouldUseWorkersAiRouting()) {
     try {
-      const payload = await providerEnv.AI.run(getCloudflareDecisionModel(), {
+      const payload = await providerEnv.AI.run(
+        stage === "extraction"
+          ? getCloudflareExtractionModel()
+          : getCloudflareRoutingModel(),
+        {
         messages: [
           {
             role: "system",
@@ -564,7 +655,8 @@ const callDecisionModel = async ({
         ],
         max_tokens: 300,
         temperature: 0.1,
-      });
+        },
+      );
 
       const content = extractCloudflareAiText(payload);
 
@@ -577,7 +669,10 @@ const callDecisionModel = async ({
   }
 
   return callOpenRouter({
-    model: getOpenRouterDecisionModel(),
+    model:
+      stage === "extraction"
+        ? getOpenRouterExtractionModel()
+        : getOpenRouterRoutingModel(),
     timeZone,
     messages,
   });
@@ -733,7 +828,7 @@ const extractImplicitTodoCandidate = (content: string) => {
   }
 
   const patterns = [
-    /^(?:i need to|i have to|i should)\s+(.+)$/i,
+    /^(?:i need to|i have to|i should|i ne[a-z]{1,3} to)\s+(.+)$/i,
     /^(?:remember|remind me)\s+to\s+(.+)$/i,
   ];
 
@@ -840,20 +935,12 @@ const decideConversationAction = async ({
   timeZone?: string | null;
 }) => {
   if (tools.filter((tool) => tool.status === "active").length === 0) {
-    const reply = await callOpenRouter({
-      model: replyModel,
+    const reply = await buildDirectReply({
+      content,
+      messages,
+      memoryContext,
+      replyModel,
       timeZone,
-      messages: [
-        ...(memoryContext
-          ? [
-              {
-                role: "system" as const,
-                content: memoryContext,
-              },
-            ]
-          : []),
-        ...buildPromptContext([...messages, createUserMessage(content)]),
-      ],
     });
 
     return {
@@ -874,6 +961,7 @@ const decideConversationAction = async ({
 
   const decision = await callDecisionModel({
     timeZone,
+    stage: "routing",
     messages: [
       {
         role: "system",
@@ -931,14 +1019,17 @@ const decideConversationAction = async ({
       } satisfies ConversationDecision;
     }
 
-    const reply = normalizeNullableModelText(parsed.reasoning);
+    const reply = await buildDirectReply({
+      content,
+      messages,
+      memoryContext,
+      replyModel,
+      timeZone,
+    });
 
     return {
       action: "direct_reply",
-      reply:
-        reply && reply.length > 0
-          ? reply
-          : "I understand. Tell me what you want me to do.",
+      reply,
       reasoning: reasoning ?? undefined,
     } satisfies ConversationDecision;
   }
@@ -1000,6 +1091,7 @@ const updatePendingToolArguments = async ({
 }) => {
   const decision = await callDecisionModel({
     timeZone,
+    stage: "extraction",
     messages: [
       {
         role: "system",

@@ -341,12 +341,32 @@ This is mostly useful for admin tools, debug screens, or a UI that wants to show
 Optional routing model setting:
 
 - `TEXTY_USE_WORKERS_AI_ROUTING`
-  - set this to `true` if you want Texty to use Workers AI for the routing step
-- `CLOUDFLARE_DECISION_MODEL`
-  - use this to choose the Workers AI model for routing and intent decisions when Workers AI routing is enabled
+  - set this to `true` if you want Texty to use Workers AI for routing and extraction
+- `CLOUDFLARE_ROUTING_MODEL`
+  - use this to choose the Workers AI model for the first-pass routing and intent step
   - if unset, Texty uses `@cf/meta/llama-3.1-8b-instruct-fast`
+- `CLOUDFLARE_EXTRACTION_MODEL`
+  - use this to choose the Workers AI model for schema-shaped argument extraction and follow-up argument updates
+  - if unset, Texty uses `@cf/qwen/qwen3-30b-a3b-fp8`
+- `CLOUDFLARE_DECISION_MODEL`
+  - legacy fallback that applies to both steps if the stage-specific Cloudflare variables are unset
+- `OPENROUTER_ROUTING_MODEL`
+  - use this to choose the OpenRouter model for the first-pass routing and intent step
+- `OPENROUTER_EXTRACTION_MODEL`
+  - use this to choose the OpenRouter model for schema-shaped argument extraction and follow-up argument updates
 - `OPENROUTER_DECISION_MODEL`
-  - use this to choose the OpenRouter model for routing and intent decisions
+  - legacy fallback that applies to both steps if the stage-specific OpenRouter variables are unset
+
+Recommended Workers AI split for Texty:
+
+- routing: `@cf/meta/llama-3.1-8b-instruct-fast`
+- extraction: `@cf/qwen/qwen3-30b-a3b-fp8`
+
+Why:
+
+- the router should be fast and cheap
+- extraction quality matters more than raw routing speed
+- tool schemas and clarification updates benefit from the stronger extraction pass
 
 Execution states:
 
