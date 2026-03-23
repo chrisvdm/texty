@@ -53,3 +53,8 @@ Follow-up change:
   the worker HTTP-fetching itself during the public demo flow
 - hardened the demo note tool so `null` and `undefined` note values now become
   a clarification instead of being saved or surfaced back as literal text
+- simplified the public demo endpoint response so it now returns only:
+  - `status_code`
+  - `response`
+  - `task`
+  instead of exposing sync and input wrappers

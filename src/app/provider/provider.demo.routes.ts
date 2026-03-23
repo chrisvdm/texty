@@ -51,6 +51,17 @@ const buildInputBody = (userId: string, text: string) => ({
   },
 });
 
+type DemoApiResponse = {
+  error?: {
+    message?: string;
+  };
+  response?: {
+    type?: string;
+    content?: string | null;
+    task_status?: string | null;
+  };
+};
+
 const renderHomePage = (origin: string) =>
   homePageTemplate
     .replaceAll("__PORT__", origin)
@@ -107,7 +118,7 @@ const syncNotesToolWithTexty = async ({
 
   return {
     status: response.status,
-    body: await response.json(),
+    body: (await response.json()) as DemoApiResponse,
   };
 };
 
@@ -133,7 +144,7 @@ const runTextyInput = async ({
 
   return {
     status: response.status,
-    body: await response.json(),
+    body: (await response.json()) as DemoApiResponse,
   };
 };
 
@@ -222,27 +233,36 @@ export const providerDemoRoutes = [
       const syncResult = await syncNotesToolWithTexty({ token, userId, origin });
       const textyResult = await runTextyInput({ token, userId, text, origin });
 
+      if (syncResult.status !== 200) {
+        return Response.json(
+          {
+            status_code: syncResult.status,
+            response:
+              syncResult.body?.error?.message ||
+              "Tool sync failed before the demo input could run.",
+            task: "setup_failed",
+          },
+          { status: syncResult.status },
+        );
+      }
+
       return Response.json({
-        ok: true,
-        demo_identity: {
-          executor_id: DEMO_EXECUTOR_ID,
-          user_id: userId,
-        },
-        observed: {
-          sync_status: syncResult.status,
-          sync_response: syncResult.body,
-          input_status: textyResult.status,
-          input_response: textyResult.body,
-        },
+        status_code: textyResult.status,
+        response:
+          textyResult.body?.response?.content ||
+          textyResult.body?.error?.message ||
+          "No response content returned.",
+        task:
+          textyResult.body?.response?.task_status ||
+          textyResult.body?.response?.type ||
+          "chat",
       });
     } catch (error) {
       return Response.json(
         {
-          ok: false,
-          error: {
-            code: "texty_unreachable",
-            message: error instanceof Error ? error.message : String(error),
-          },
+          status_code: 502,
+          response: error instanceof Error ? error.message : String(error),
+          task: "failed",
         },
         { status: 502 },
       );
