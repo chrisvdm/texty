@@ -406,6 +406,56 @@
       const submitButtonEl = document.getElementById("throughTexty");
       const playgroundPath = "__PLAYGROUND_PATH__";
       const playgroundMode = "__PLAYGROUND_MODE__";
+      const demoWindowState = window.__textyDemoState || (window.__textyDemoState = {
+        todosByIdentity: {}
+      });
+
+      const getDemoIdentityKey = () =>
+        (providerIdEl.value || "demo_executor") + "::" + (userIdEl.value || "demo_user");
+
+      const getStoredTodos = () => {
+        const identityKey = getDemoIdentityKey();
+        const todos = demoWindowState.todosByIdentity[identityKey];
+        return Array.isArray(todos) ? todos : [];
+      };
+
+      const storeTodos = (todos) => {
+        demoWindowState.todosByIdentity[getDemoIdentityKey()] = todos;
+      };
+
+      const mergeTodos = (incomingTodos) => {
+        const merged = [...getStoredTodos()];
+
+        if (!Array.isArray(incomingTodos)) {
+          return merged;
+        }
+
+        incomingTodos.forEach((todo) => {
+          if (!todo || typeof todo !== "object") {
+            return;
+          }
+
+          const existingIndex = merged.findIndex((entry) => {
+            if (!entry || typeof entry !== "object") {
+              return false;
+            }
+
+            if (todo.id && entry.id) {
+              return entry.id === todo.id;
+            }
+
+            return entry.text === todo.text && entry.created_at === todo.created_at;
+          });
+
+          if (existingIndex === -1) {
+            merged.push(todo);
+          } else {
+            merged[existingIndex] = todo;
+          }
+        });
+
+        return merged;
+      };
 
       const renderJson = (element, value) => {
         element.textContent = JSON.stringify(value, null, 2);
@@ -559,6 +609,9 @@
 
           if (result.body && result.body.ok) {
             const assistantReply = result.body.assistant_reply || "No assistant reply returned.";
+            const mergedTodos = mergeTodos(result.body.todos || []);
+
+            storeTodos(mergedTodos);
 
             appendBubble({
               label: "Texty",
@@ -566,7 +619,7 @@
               content: assistantReply
             });
 
-            renderTodos(result.body.todos || []);
+            renderTodos(mergedTodos);
             renderStatus(result.body.task || null, assistantReply);
           } else {
             appendBubble({
