@@ -141,6 +141,19 @@ If you are new to this, think of it like this:
 - your code or webhook is the thing that actually does the work once Texty has already extracted those arguments
 - the example folder shows the smallest possible version of that target
 
+Core terms:
+
+- `account`
+  - the owner that pays for and manages Texty
+- `integration`
+  - the configured Texty connection for one app, bot, or deployment
+- `executor`
+  - the script, service, or workflow runner Texty triggers to do real work
+- `user_id`
+  - the end user identity within an integration
+- `channel`
+  - the communication surface the user is speaking through, identified by `channel.type` and `channel.id`
+
 ## Tool Contract
 
 `texty.json` is the sync manifest.
@@ -166,7 +179,7 @@ The executor should receive validated tool arguments, not raw user language that
 Every API request needs this header:
 
 ```text
-Authorization: Bearer YOUR_EXECUTOR_TOKEN
+Authorization: Bearer YOUR_INTEGRATION_TOKEN
 ```
 
 That token identifies which connected system is calling Texty.
@@ -206,7 +219,7 @@ curl -X POST http://localhost:5173/api/v1/providers/provider_a/users/user_123/to
 Field guide:
 
 - `provider_id`
-  - the current wire-format connection id
+  - the current wire-format integration id
   - this must match the token making the request
 - `user_id`
   - the end user who will be talking to Texty
@@ -227,7 +240,7 @@ Field guide:
 
 Plain English example:
 
-- `provider_id = "provider_a"` means “this connection is called provider_a”
+- `provider_id = "provider_a"` means “this integration is called provider_a”
 - `user_id = "user_123"` means “these tools are available for this user”
 - `tool_name = "spreadsheet.update_row"` means “this tool updates a spreadsheet row”
 
@@ -262,7 +275,7 @@ curl -X POST http://localhost:5173/api/v1/input \
 Field guide:
 
 - `provider_id`
-  - the current wire-format connection id
+  - the current wire-format integration id
   - tells Texty which tool set this conversation belongs to
 - `user_id`
   - the end user speaking through Texty
@@ -284,6 +297,9 @@ Field guide:
 - `channel.id`
   - the identity of that surface for this user
   - examples: an email address, a browser session id, or a messaging account id
+- `channel.name`
+  - optional descriptive label for admin or UI use
+  - not required for routing or identity
 
 Why `channel` matters:
 
@@ -338,7 +354,7 @@ This is mostly useful for admin tools, debug screens, or a UI that wants to show
 
 - responses include `request_id` and `X-Request-Id`
 - write routes support `Idempotency-Key`
-- input is rate-limited per connection/user pair
+- input is rate-limited per integration/user pair
 - normal conversations are captured into memory by default
 - private threads are excluded from shared-memory capture and retrieval
 - OpenRouter is the default routing model for intent and tool choice
@@ -395,7 +411,7 @@ Meaning:
 - `failed`
   - the tool could not complete the work
 
-When a tool returns `accepted` or `in_progress`, the intended follow-up path is a minimal executor callback to Texty:
+When a tool returns `accepted` or `in_progress`, the intended follow-up path is a minimal executor callback to Texty at `POST /api/v1/webhooks/executor`:
 
 ```json
 {

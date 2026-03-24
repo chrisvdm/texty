@@ -70,22 +70,22 @@ This is intentionally simpler than a second dispatch layer.
 
 ## Identity Model
 
-### One connection can have many users
+### One integration can have many users
 
 Yes.
 
-A connection is the external system identity Texty uses for auth, ownership, and tool sync. One connection may serve many end users.
+An integration is the external system identity Texty uses for auth, ownership, and tool sync. One integration may serve many end users.
 
 ### Purpose of `provider_id`
 
-`provider_id` identifies the external connection in the current wire format.
+`provider_id` identifies the external integration in the current wire format.
 
 Its purpose is to:
 
 - route to the correct group of tools
 - namespace tools so names do not collide
-- support multiple connections for the same Texty deployment
-- separate permissions and sync state by connection
+- support multiple integrations for the same Texty deployment
+- separate permissions and sync state by integration
 
 Examples:
 
@@ -101,7 +101,7 @@ Examples:
 - Chris using Provider A
 - Sam using Provider B
 
-The connection is the application/system identity.
+The integration is the application/system identity.
 The user is the person.
 
 So a valid identity tuple is:
@@ -111,7 +111,7 @@ So a valid identity tuple is:
 
 This means:
 
-- Provider A is the provider
+- Provider A is the integration
 - Chris is the end user
 
 ## Memory Policy
@@ -135,7 +135,7 @@ The full policy model is described in `docs/architecture-foundations.md`.
 
 ### 1. Tool sync
 
-Connections should sync the allowed tools for a given user into Texty.
+Integrations should sync the allowed tools for a given user into Texty.
 
 The preferred source of that sync payload is a manifest file named `texty.json`.
 

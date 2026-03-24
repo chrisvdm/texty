@@ -28,13 +28,14 @@ The simple MVP identity model is:
 
 - `account`
   - owns billing and connected apps
+- `integration`
+  - one configured Texty connection for one app or deployment
 - `executor`
-  - one connected app or service
-  - receives one shared runtime token for that app/team
+  - the code or service the integration triggers when Texty decides real work should happen
 - `end_user`
   - the person talking through Texty
 
-For MVP, the runtime token is scoped per executor/app.
+For MVP, the runtime token is scoped per integration/app.
 It is not per teammate and not per end user.
 
 ## Target Product
@@ -49,7 +50,7 @@ In its intended final shape, Texty should:
 - decide when to answer directly and when to invoke executor-owned tools
 - return the final user-facing response
 
-Texty should not own provider-specific business logic.
+Texty should not own integration-specific business logic.
 It should orchestrate conversation around that logic.
 
 ## Current Product Shape
@@ -92,13 +93,13 @@ At the moment:
 - global memory is still browser-session scoped in important places
 - the executor-facing HTTP API is still documented direction rather than shipped runtime contract in some docs, even though an MVP slice now exists
 - the web UI is still one of the main entry surfaces
-- the security model is still browser-session based rather than provider-authenticated multi-tenant service auth
+- the security model is still browser-session based rather than integration-authenticated multi-tenant service auth
 
 So the repo should currently be understood as:
 
 - a functioning conversation prototype
 - with strong architectural direction
-- that is actively being extracted into a provider-agnostic service model
+- that is actively being extracted into an integration-agnostic service model
 
 ## Context Strategy
 

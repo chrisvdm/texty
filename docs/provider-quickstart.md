@@ -4,10 +4,23 @@
 
 This document shows the smallest useful way to connect code to Texty.
 
+Core terms:
+
+- `account`
+  - the owner that pays for and manages Texty
+- `integration`
+  - the configured Texty connection for one app, bot, or deployment
+- `executor`
+  - the script, service, or workflow runner Texty triggers to do real work
+- `user_id`
+  - the end user identity within an integration
+- `channel`
+  - the communication surface the user is speaking through, identified by `channel.type` and `channel.id`
+
 Current note:
 
 - the current wire format still uses `provider_id`
-- in plain language, this is just the connection id
+- in product language, this is the integration id
 - Texty chooses the tool before it calls your code
 
 That external system does not need to be a large product. It can be:
@@ -23,13 +36,13 @@ Texty handles the conversation. Your code handles the work.
 
 To connect something to Texty, you need three things:
 
-1. A connection id
+1. An integration id
 2. A shared API token
 3. A URL Texty can call when work should run
 
 That is enough for a first integration.
 
-## Step 1: Configure a Connection
+## Step 1: Configure An Integration
 
 In local development, add connection config to `.dev.vars`:
 
@@ -39,8 +52,8 @@ TEXTY_EXECUTOR_CONFIG='{"provider_a":{"token":"dev-token","baseUrl":"http://loca
 
 Meaning:
 
-- `provider_a` is the current wire-format connection id
-- `dev-token` is the bearer token used for this connection
+- `provider_a` is the current wire-format integration id
+- `dev-token` is the bearer token used for this integration
 - `baseUrl` is where Texty will call your code
 
 ## Step 2: Sync Allowed Tools
@@ -73,7 +86,7 @@ curl -X POST http://localhost:5173/api/v1/providers/provider_a/users/user_123/to
   }'
 ```
 
-This gives Texty permission to reason over that tool for that connection/user pair.
+This gives Texty permission to reason over that tool for that integration/user pair.
 
 ## Step 3: Send Conversation Input
 
@@ -140,7 +153,7 @@ Important:
 - the current runtime still includes extra wrapper fields in the payload today
 - the simplest target just accepts the arguments and performs the action
 - shortcut-forced tool mode may also include `context.raw_input_text`
-- async executors may receive `context.completion_webhook_url` and can call it later when work finishes
+- async executors may receive `context.executor_result_webhook_url` and can call it later when work finishes
 
 ### Step 5: Send an async result back to Texty
 
@@ -159,7 +172,7 @@ If your executor launches work and returns `accepted` or `in_progress`, keep the
 When the task actually finishes, call Texty back:
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/executor-results \
+curl -X POST http://localhost:5173/api/v1/webhooks/executor \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
@@ -245,6 +258,12 @@ Every request should include:
 - `channel.id`
 
 This matters because Texty uses channel context to maintain recent thread continuity.
+
+Optional channel metadata:
+
+- `channel.name`
+  - a descriptive label for admin or UI use
+  - not required for routing or identity
 
 Example:
 

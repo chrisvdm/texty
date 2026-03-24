@@ -6,6 +6,19 @@ The tool-target direction document explains the architecture.
 
 This document explains the actual contract Texty should expose to connected systems.
 
+Terminology used in this document:
+
+- `account`
+  - the owner that pays for and manages Texty
+- `integration`
+  - the configured Texty connection for one app, bot, product, or deployment
+- `executor`
+  - the code or service the integration uses when Texty triggers real work
+- `user_id`
+  - the end user identity within that integration
+- `channel`
+  - the communication surface the user is speaking through, identified by `channel.type` and `channel.id`
+
 It focuses on:
 
 - authentication expectations
@@ -29,11 +42,11 @@ Every connected-system request to Texty should be authenticated.
 
 Recommended default:
 
-- `Authorization: Bearer <provider_token>`
+- `Authorization: Bearer <integration_token>`
 
 That token should identify:
 
-- the connection
+- the integration
 - the environment
 - the allowed API scope
 
@@ -56,13 +69,18 @@ And where applicable:
 
 - `thread_id`
 
-Texty must verify that the authenticated connection is allowed to act for the `provider_id` in the request.
+Texty must verify that the authenticated integration is allowed to act for the `provider_id` in the request.
+
+Current naming note:
+
+- the current wire format still uses `provider_id`
+- in product language, this is the integration id
 
 ## Common Headers
 
 Recommended headers:
 
-- `Authorization: Bearer <provider_token>`
+- `Authorization: Bearer <integration_token>`
 - `Content-Type: application/json`
 - `Idempotency-Key: <unique-key>` for write operations that may be retried
 - `X-Request-Id: <request-id>` for tracing
@@ -98,7 +116,7 @@ Error responses should use a consistent shape:
 
 Purpose:
 
-- tell Texty which tools this connection/user pair is allowed to use
+- tell Texty which tools this integration/user pair is allowed to use
 
 Request:
 
@@ -141,7 +159,7 @@ Success response:
 
 Notes:
 
-- this operation should replace or upsert the allowed tool set for the given provider/user pair
+- this operation should replace or upsert the allowed tool set for the given integration/user pair
 - removed tools should no longer be considered available unless explicitly retained by policy
 
 Status codes:
@@ -149,7 +167,7 @@ Status codes:
 - `200` success
 - `400` invalid payload
 - `401` unauthenticated
-- `403` provider mismatch
+- `403` integration mismatch
 
 ### 2. Conversation input
 
@@ -180,7 +198,8 @@ Request:
   "timezone": "Africa/Johannesburg",
   "channel": {
     "type": "web",
-    "id": "browser_session_abc"
+    "id": "browser_session_abc",
+    "name": "Chris browser"
   },
   "context": {
     "external_memories": []
@@ -194,6 +213,11 @@ Behavior:
 - Texty uses the channel context to resolve likely thread continuity if `thread_id` is missing
 - Texty decides whether to answer, clarify, or invoke a tool
 - Texty stores the turn
+
+Channel note:
+
+- `channel.type` and `channel.id` are the stable identity fields
+- `channel.name` may be included as optional descriptive metadata for admin or UI use
 
 Thread resolution rule:
 
@@ -251,7 +275,7 @@ Shortcut note:
 
 Rate limiting:
 
-- conversation input is rate limited per connection/user pair
+- conversation input is rate limited per integration/user pair
 - current MVP default: `30` requests per `60` seconds
 - rate-limited responses return `429`
 - rate-limited responses should include `Retry-After`
@@ -261,8 +285,8 @@ Status codes:
 - `200` success
 - `400` invalid payload
 - `401` unauthenticated
-- `403` provider mismatch
-- `404` thread not found or not owned by provider/user
+- `403` integration mismatch
+- `404` thread not found or not owned by integration/user
 - `429` rate limited
 
 Example rate-limited response:
@@ -285,7 +309,7 @@ Example rate-limited response:
 
 Purpose:
 
-- create a new thread for a provider/user pair
+- create a new thread for an integration/user pair
 
 Request:
 
@@ -319,7 +343,7 @@ Success response:
 
 Purpose:
 
-- list threads for one provider/user pair
+- list threads for one integration/user pair
 
 Success response:
 
@@ -376,7 +400,7 @@ Behavior:
 
 Purpose:
 
-- inspect the shared memory currently associated with a provider/user pair
+- inspect the shared memory currently associated with an integration/user pair
 
 This is primarily useful for:
 
@@ -394,7 +418,7 @@ Purpose:
 
 ### 9. Executor result callback
 
-`POST /api/v1/executor-results`
+`POST /api/v1/webhooks/executor`
 
 Purpose:
 
@@ -487,7 +511,7 @@ Current runtime convenience fields may include:
 
 - `context.raw_input_text`
   - present when the user intentionally forced a tool via text such as `@[tool-name]`
-- `context.completion_webhook_url`
+- `context.executor_result_webhook_url`
   - present when Texty wants the executor to call back later with an async result
 
 Target success response:
@@ -547,14 +571,14 @@ Behavior:
 - if the same `Idempotency-Key` is reused with a different request body, Texty should return `409`
 - replayed responses may include `X-Idempotent-Replay: true`
 
-This avoids duplicate writes when a provider retries after a network failure.
+This avoids duplicate writes when an integration retries after a network failure.
 
 ## Security Rules
 
-The provider API must enforce:
+The integration API must enforce:
 
-- authenticated provider identity
-- provider/user ownership checks
+- authenticated integration identity
+- integration/user ownership checks
 - thread ownership checks
 - rate limiting
 - audit logging for write operations
@@ -568,7 +592,7 @@ Private-thread rules must also be enforced in the API runtime:
 
 ### Current state
 
-The live codebase does not yet expose this full provider API.
+The live codebase does not yet expose this full integration API.
 
 ### Intended state
 
