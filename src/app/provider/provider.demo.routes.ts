@@ -2,15 +2,14 @@ import { route } from "rwsdk/router";
 import { requestInfo } from "rwsdk/worker";
 
 import asyncCountdownTemplate from "../../../examples/async-countdown/index.html?raw";
-import asyncCountdownManifest from "../../../examples/async-countdown/texty.json";
 import homePageTemplate from "../../../examples/minimal-executor/index.html?raw";
-import demoManifest from "../../../examples/minimal-executor/texty.json";
 import pinnedToolTemplate from "../../../examples/pinned-tool/index.html?raw";
-import pinnedToolManifest from "../../../examples/pinned-tool/texty.json";
-// @ts-ignore example-only module imported into hosted demo route
-import { executeToolCall as executeCountdownToolCall, getCountdownsForUser, markCountdownComplete } from "../../../examples/async-countdown/executor.mjs";
-// @ts-ignore example-only module imported into hosted demo route
-import { executeToolCall as executePinnedToolCall, getToolEntriesForUser } from "../../../examples/pinned-tool/executor.mjs";
+// @ts-expect-error example-only module imported into hosted demo route
+import { executeToolCall as executeCountdownToolCall, getCountdownsForUser, markCountdownComplete, toolDefinitions as asyncCountdownTools } from "../../../examples/async-countdown/executor.mjs";
+// @ts-expect-error example-only module imported into hosted demo route
+import { executeToolCall as executePinnedToolCall, getToolEntriesForUser, toolDefinitions as pinnedToolTools } from "../../../examples/pinned-tool/executor.mjs";
+// @ts-expect-error example-only module imported into hosted demo route
+import { toolDefinitions as demoTools } from "../../../examples/minimal-executor/executor.mjs";
 import {
   handleProviderConversationInput,
   syncProviderTools,
@@ -43,7 +42,7 @@ const pinnedToolDeliveredChannelMessages = new Map<string, Array<Record<string, 
 const buildSyncBody = (userId: string) => ({
   integration_id: DEMO_EXECUTOR_ID,
   user_id: userId,
-  tools: demoManifest.tools.map((tool) => ({
+  tools: demoTools.map((tool: Record<string, unknown>) => ({
     ...tool,
     status: "active" as const,
   })),
@@ -93,7 +92,7 @@ const renderPinnedToolPage = (origin: string) =>
 const buildCountdownSyncBody = (userId: string) => ({
   integration_id: COUNTDOWN_EXECUTOR_ID,
   user_id: userId,
-  tools: asyncCountdownManifest.tools.map((tool) => ({
+  tools: asyncCountdownTools.map((tool: Record<string, unknown>) => ({
     ...tool,
     status: "active" as const,
   })),
@@ -102,7 +101,7 @@ const buildCountdownSyncBody = (userId: string) => ({
 const buildPinnedToolSyncBody = (userId: string) => ({
   integration_id: PINNED_TOOL_EXECUTOR_ID,
   user_id: userId,
-  tools: pinnedToolManifest.tools.map((tool) => ({
+  tools: pinnedToolTools.map((tool: Record<string, unknown>) => ({
     ...tool,
     status: "active" as const,
   })),
