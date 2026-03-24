@@ -110,7 +110,7 @@ test("executeProviderToolRequest returns normalized success payloads", async () 
       type: "whatsapp",
       id: "user_555",
     },
-    completionWebhookUrl: "https://texty.example/api/v1/tasks/complete",
+    resultWebhookUrl: "https://texty.example/api/v1/webhooks/executor",
     rawInputText: "buy milk and eggs",
     shortcutMode: true,
     fetchImpl: async (input, init) => {
@@ -138,7 +138,7 @@ test("executeProviderToolRequest returns normalized success payloads", async () 
     "https://executor.example/root/tools/execute",
   );
   assert.match(capturedBody, /"request_id":"req_123"/);
-  assert.match(capturedBody, /"completion_webhook_url":"https:\/\/texty.example\/api\/v1\/tasks\/complete"/);
+  assert.match(capturedBody, /"executor_result_webhook_url":"https:\/\/texty.example\/api\/v1\/webhooks\/executor"/);
   assert.match(capturedBody, /"raw_input_text":"buy milk and eggs"/);
   assert.match(capturedBody, /"shortcut_mode":true/);
   assert.deepEqual(result, {

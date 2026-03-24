@@ -84,12 +84,12 @@ export type ProviderConversationInput = {
   };
 };
 
-export type ProviderTaskCompletionInput = {
+export type ProviderExecutorResultInput = {
   provider_id: string;
   user_id: string;
   thread_id: string;
   channel?: ProviderChannelInput;
-  task: {
+  result: {
     execution_id?: string;
     tool_name?: string;
     state: ProviderExecutionState;

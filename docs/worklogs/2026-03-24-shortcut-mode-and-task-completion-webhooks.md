@@ -5,7 +5,7 @@
 Resume Texty after MVP demo feedback by adding two missing usability features:
 
 - explicit tool shortcut mode using `@[tool-name]`
-- webhook-driven task completion delivery back into the originating channel
+- webhook-driven async executor result delivery back into the originating channel
 
 ## Changes
 
@@ -19,8 +19,8 @@ Resume Texty after MVP demo feedback by adding two missing usability features:
   - channel context
   - raw shortcut input
   - a Texty completion webhook URL
-- Added provider task completion webhook support at:
-  - `/api/v1/tasks/complete`
+- Added provider async result callback support at:
+  - `/api/v1/webhooks/executor`
 - Added provider-side outbound channel delivery calls at:
   - `POST {provider.baseUrl}/channels/messages`
 - Added thread-to-channel binding persistence so async completions can route back to the correct channel even after the original turn is over.
@@ -34,9 +34,9 @@ Resume Texty after MVP demo feedback by adding two missing usability features:
 Texty now supports two practical flows that were missing in the MVP demo:
 
 - users can intentionally force a specific tool without relying on routing confidence
-- executors can finish work later and still have Texty append the completion into the thread and send it back to the channel
+- executors can finish work later and still have Texty append the later result into the thread and send it back to the channel
 
 ## Verification
 
 - `npm run types`
-- `npm test -- src/app/provider/provider.logic.test.ts src/app/provider/provider.execution.test.ts src/app/provider/provider.conversation.endpoint.test.ts src/app/provider/provider.task-completion.endpoint.test.ts src/app/chat/shared.test.ts src/app/provider/provider.idempotency.test.ts`
+- `npm test -- src/app/provider/provider.logic.test.ts src/app/provider/provider.execution.test.ts src/app/provider/provider.conversation.endpoint.test.ts src/app/provider/provider.executor-result.endpoint.test.ts src/app/chat/shared.test.ts src/app/provider/provider.idempotency.test.ts`

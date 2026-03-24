@@ -1,22 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createHandleTaskCompletionEndpoint } from "./provider.task-completion.endpoint.core.ts";
+import { createHandleExecutorResultEndpoint } from "./provider.executor-result.endpoint.core.ts";
 import {
   createTestContext,
   okAuth,
   sharedEndpointDeps,
 } from "./provider.endpoint.test-helpers.ts";
-import type { ProviderTaskCompletionInput } from "./provider.types.ts";
+import type { ProviderExecutorResultInput } from "./provider.types.ts";
 
 const createCompletionRequest = ({
   body,
   requestId = "req_123",
 }: {
-  body: ProviderTaskCompletionInput;
+  body: ProviderExecutorResultInput;
   requestId?: string;
 }) =>
-  new Request("https://example.com/api/v1/tasks/complete", {
+  new Request("https://example.com/api/v1/webhooks/executor", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -26,19 +26,19 @@ const createCompletionRequest = ({
     body: JSON.stringify(body),
   });
 
-const createInput = (): ProviderTaskCompletionInput => ({
+const createInput = (): ProviderExecutorResultInput => ({
   provider_id: "provider_a",
   user_id: "user_123",
   thread_id: "thread_123",
-  task: {
+  result: {
     tool_name: "todos.add",
     state: "completed",
     content: "Added the todo.",
   },
 });
 
-test("task completion endpoint includes request tracing on success", async () => {
-  const endpoint = createHandleTaskCompletionEndpoint({
+test("executor result endpoint includes request tracing on success", async () => {
+  const endpoint = createHandleExecutorResultEndpoint({
     ...sharedEndpointDeps,
     authenticateProviderRequest: () => ({
       ...okAuth(),
@@ -47,7 +47,7 @@ test("task completion endpoint includes request tracing on success", async () =>
       },
     }),
     loadOrCreateProviderUserContext: async () => createTestContext(),
-    handleProviderTaskCompletion: async ({ requestId }) => ({
+    handleProviderExecutorResult: async ({ requestId }) => ({
       status: "ok",
       request_id_seen_by_service: requestId,
     }),

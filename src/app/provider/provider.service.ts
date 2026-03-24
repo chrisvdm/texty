@@ -35,7 +35,7 @@ import type {
   ProviderConversationInput,
   ProviderConversationResponseKind,
   ProviderExecutionState,
-  ProviderTaskCompletionInput,
+  ProviderExecutorResultInput,
   ProviderToolSyncInput,
   ProviderUserContext,
 } from "./provider.types";
@@ -1351,8 +1351,8 @@ const executeProviderTool = async ({
   requestId?: string;
 }) => {
   const requestUrl = requestInfo?.request?.url;
-  const completionWebhookUrl = requestUrl
-    ? `${new URL(requestUrl).origin}/api/v1/tasks/complete`
+  const resultWebhookUrl = requestUrl
+    ? `${new URL(requestUrl).origin}/api/v1/webhooks/executor`
     : null;
 
   return executeProviderToolRequest({
@@ -1364,7 +1364,7 @@ const executeProviderTool = async ({
     args,
     requestId,
     channel,
-    completionWebhookUrl,
+    resultWebhookUrl,
     rawInputText,
     shortcutMode,
   });
@@ -2361,19 +2361,19 @@ export const handleProviderConversationInput = async ({
   };
 };
 
-export const handleProviderTaskCompletion = async ({
+export const handleProviderExecutorResult = async ({
   input,
   providerConfig,
   requestId,
 }: {
-  input: ProviderTaskCompletionInput;
+  input: ProviderExecutorResultInput;
   providerConfig: ProviderConfig;
   requestId?: string;
 }) => {
-  const content = input.task.content.trim();
+  const content = input.result.content.trim();
 
   if (!content) {
-    throw new Error("Task completion content is required.");
+    throw new Error("Executor result content is required.");
   }
 
   const context = await loadOrCreateProviderUserContext({
@@ -2444,10 +2444,10 @@ export const handleProviderTaskCompletion = async ({
         channel,
         content,
         task: {
-          executionId: input.task.execution_id,
-          toolName: input.task.tool_name,
-          state: input.task.state,
-          data: input.task.data,
+          executionId: input.result.execution_id,
+          toolName: input.result.tool_name,
+          state: input.result.state,
+          data: input.result.data,
         },
         requestId,
       });
@@ -2458,7 +2458,7 @@ export const handleProviderTaskCompletion = async ({
   }
 
   logProviderAudit({
-    event: "provider.task.completed",
+    event: "provider.executor_result.received",
     requestId,
     providerId: input.provider_id,
     userId: input.user_id,
@@ -2467,8 +2467,8 @@ export const handleProviderTaskCompletion = async ({
     channelId: channel?.id,
     status: channelDelivery === "failed" ? "error" : "ok",
     metadata: {
-      toolName: input.task.tool_name ?? null,
-      executionState: input.task.state,
+      toolName: input.result.tool_name ?? null,
+      executionState: input.result.state,
       channelDelivery,
     },
   });

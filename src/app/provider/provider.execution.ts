@@ -91,7 +91,7 @@ export const executeProviderToolRequest = async ({
   args,
   requestId,
   channel,
-  completionWebhookUrl,
+  resultWebhookUrl,
   rawInputText,
   shortcutMode = false,
   fetchImpl = fetch,
@@ -105,7 +105,7 @@ export const executeProviderToolRequest = async ({
   args: Record<string, unknown>;
   requestId?: string;
   channel?: ProviderChannelInput;
-  completionWebhookUrl?: string | null;
+  resultWebhookUrl?: string | null;
   rawInputText?: string;
   shortcutMode?: boolean;
   fetchImpl?: typeof fetch;
@@ -144,7 +144,7 @@ export const executeProviderToolRequest = async ({
           request_id: requestId ?? crypto.randomUUID(),
           thread_id: threadId,
           channel,
-          completion_webhook_url: completionWebhookUrl ?? undefined,
+          executor_result_webhook_url: resultWebhookUrl ?? undefined,
           raw_input_text: rawInputText ?? undefined,
           shortcut_mode: shortcutMode || undefined,
         },

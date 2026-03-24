@@ -76,14 +76,14 @@ const unauthorized = (response) =>
     },
   });
 
-const sendTaskCompletionToTexty = async ({ payload, result }) => {
-  const completionWebhookUrl =
-    typeof payload.context?.completion_webhook_url === "string"
-      ? payload.context.completion_webhook_url.trim()
+const sendExecutorResultToTexty = async ({ payload, result }) => {
+  const executorResultWebhookUrl =
+    typeof payload.context?.executor_result_webhook_url === "string"
+      ? payload.context.executor_result_webhook_url.trim()
       : "";
 
   if (
-    !completionWebhookUrl ||
+    !executorResultWebhookUrl ||
     (result.state !== "accepted" && result.state !== "in_progress")
   ) {
     return;
@@ -91,7 +91,7 @@ const sendTaskCompletionToTexty = async ({ payload, result }) => {
 
   setTimeout(async () => {
     try {
-      await fetch(completionWebhookUrl, {
+      await fetch(executorResultWebhookUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${expectedToken}`,
@@ -108,7 +108,7 @@ const sendTaskCompletionToTexty = async ({ payload, result }) => {
             typeof payload.context.channel.id === "string"
               ? payload.context.channel
               : undefined,
-          task: {
+          result: {
             execution_id: String(payload.execution_id || "").trim() || undefined,
             tool_name: payload.tool_name,
             state: "completed",
@@ -120,7 +120,7 @@ const sendTaskCompletionToTexty = async ({ payload, result }) => {
         }),
       });
     } catch (error) {
-      console.error("Unable to deliver task completion callback", error);
+      console.error("Unable to deliver executor result callback", error);
     }
   }, 250);
 };
@@ -336,7 +336,7 @@ const server = createServer(async (request, response) => {
     defaultUserId,
   });
 
-  void sendTaskCompletionToTexty({
+  void sendExecutorResultToTexty({
     payload,
     result,
   });

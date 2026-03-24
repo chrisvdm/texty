@@ -2,7 +2,7 @@ import { route } from "rwsdk/router";
 
 import { authenticateProviderRequest } from "./provider-auth";
 import { handleConversationInputEndpoint } from "./provider.conversation.endpoint";
-import { handleTaskCompletionEndpoint } from "./provider.task-completion.endpoint";
+import { handleExecutorResultEndpoint } from "./provider.executor-result.endpoint";
 import { handleThreadCreateEndpoint } from "./provider.thread-create.endpoint";
 import { handleThreadMutationEndpoint } from "./provider.thread-mutation.endpoint";
 import { handleToolsSyncEndpoint } from "./provider.tools-sync.endpoint";
@@ -27,7 +27,7 @@ export const providerRoutes = [
   ),
   route("/api/v1/input", handleConversationInputEndpoint),
   route("/api/v1/conversation/input", handleConversationInputEndpoint),
-  route("/api/v1/tasks/complete", handleTaskCompletionEndpoint),
+  route("/api/v1/webhooks/executor", handleExecutorResultEndpoint),
   route("/api/v1/threads", handleThreadCreateEndpoint),
   route(
     "/api/v1/providers/:providerId/users/:userId/threads",

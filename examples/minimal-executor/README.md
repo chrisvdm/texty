@@ -104,8 +104,8 @@ The current example also accepts two newer runtime helpers:
 
 - `payload.context.raw_input_text`
   - used when the user forces a tool shortcut such as `@[todos.add]`
-- `payload.context.completion_webhook_url`
-  - used when the executor returns `accepted` or `in_progress` and wants to notify Texty later that the task finished
+- `payload.context.executor_result_webhook_url`
+  - used when the executor returns `accepted` or `in_progress` and wants to notify Texty later with the final async result
 
 ## Run It
 
@@ -240,7 +240,7 @@ After you send a message:
 
 That is the basic integration loop.
 
-If your executor returns `accepted` or `in_progress`, Texty also includes a completion webhook URL in the execution payload. The example server uses that URL to POST back to Texty when the task is finished, and Texty then delivers the completion to `POST /channels/messages`.
+If your executor returns `accepted` or `in_progress`, Texty also includes an executor-result webhook URL in the execution payload. The example server uses that URL to POST back to Texty at `/api/v1/webhooks/executor` with the later result, and Texty then delivers that thread message to `POST /channels/messages`.
 
 ## How To Adapt It
 

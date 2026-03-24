@@ -1,5 +1,5 @@
 import type {
-  ProviderTaskCompletionInput,
+  ProviderExecutorResultInput,
   ProviderUserContext,
 } from "./provider.types.ts";
 
@@ -20,7 +20,7 @@ type AuthResult =
       };
     };
 
-export type TaskCompletionEndpointDeps = {
+export type ExecutorResultEndpointDeps = {
   getRequestId: (request: Request) => string;
   readJson: <T>(request: Request) => Promise<T>;
   jsonResponse: (input: {
@@ -44,8 +44,8 @@ export type TaskCompletionEndpointDeps = {
     providerId: string;
     userId: string;
   }) => Promise<ProviderUserContext>;
-  handleProviderTaskCompletion: (input: {
-    input: ProviderTaskCompletionInput;
+  handleProviderExecutorResult: (input: {
+    input: ProviderExecutorResultInput;
     providerConfig: {
       token: string;
       baseUrl?: string;
@@ -54,8 +54,8 @@ export type TaskCompletionEndpointDeps = {
   }) => Promise<Record<string, unknown>>;
 };
 
-export const createHandleTaskCompletionEndpoint = (
-  deps: TaskCompletionEndpointDeps,
+export const createHandleExecutorResultEndpoint = (
+  deps: ExecutorResultEndpointDeps,
 ) => {
   return async ({ request }: { request: Request }) => {
     const requestId = deps.getRequestId(request);
@@ -70,7 +70,7 @@ export const createHandleTaskCompletionEndpoint = (
     }
 
     try {
-      const input = await deps.readJson<ProviderTaskCompletionInput>(request);
+      const input = await deps.readJson<ProviderExecutorResultInput>(request);
       await deps.loadOrCreateProviderUserContext({
         providerId: input.provider_id,
         userId: input.user_id,
@@ -90,7 +90,7 @@ export const createHandleTaskCompletionEndpoint = (
         });
       }
 
-      const result = await deps.handleProviderTaskCompletion({
+      const result = await deps.handleProviderExecutorResult({
         input,
         providerConfig: auth.providerConfig,
         requestId,
