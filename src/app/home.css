@@ -22,6 +22,24 @@
   margin: 0 auto;
 }
 
+.landing-topbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 4px 0;
+}
+
+.landing-docs-link {
+  color: var(--landing-ink);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.landing-docs-link:hover {
+  color: rgba(28, 31, 87, 0.72);
+}
+
 .landing-hero {
   padding: 28px 4px 24px;
 }
@@ -69,6 +87,120 @@
   display: grid;
   gap: 18px;
   margin-top: 10px;
+}
+
+.landing-section-docs {
+  padding-top: 24px;
+}
+
+.docs-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 28px;
+  margin-top: 20px;
+}
+
+.docs-sidebar {
+  padding: 8px 4px 0;
+}
+
+.docs-nav {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.docs-nav-link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: rgba(28, 31, 87, 0.82);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.docs-nav-link:hover,
+.docs-nav-link-active {
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--landing-ink);
+}
+
+.docs-main {
+  padding: 2px 4px 0;
+}
+
+.docs-title {
+  margin: 0 0 18px;
+  font-family: "Cormorant Garamond", "Iowan Old Style", "Times New Roman", serif;
+  font-size: clamp(38px, 5vw, 58px);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.docs-content {
+  max-width: 760px;
+}
+
+.docs-heading-1,
+.docs-heading-2,
+.docs-heading-3 {
+  margin: 28px 0 10px;
+  font-family: "Cormorant Garamond", "Iowan Old Style", "Times New Roman", serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.docs-heading-1 {
+  font-size: 38px;
+}
+
+.docs-heading-2 {
+  font-size: 30px;
+}
+
+.docs-heading-3 {
+  font-size: 24px;
+}
+
+.docs-paragraph,
+.docs-list {
+  margin: 0 0 14px;
+  color: rgba(28, 31, 87, 0.82);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.docs-list {
+  padding-left: 20px;
+}
+
+.docs-inline-code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(146, 147, 174, 0.16);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.92em;
+}
+
+.docs-code-block {
+  overflow-x: auto;
+  margin: 18px 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #17193f;
+  color: #ffffff;
+}
+
+.docs-code-block code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+}
+
+.docs-link {
+  color: var(--landing-ink);
 }
 
 .landing-section-copy {
@@ -160,6 +292,11 @@
 
   .landing-card {
     min-height: 0;
+  }
+
+  .docs-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
   }
 }
 

@@ -1,11 +1,13 @@
-import { render, route } from "rwsdk/router";
+import { layout, render, route } from "rwsdk/router";
 import { defineApp } from "rwsdk/worker";
 
 import { ChatSessionDurableObject } from "@/app/chat/chat-session-do";
 import { Document } from "@/app/document";
 import { StaticDocument } from "@/app/static-document";
+import { DocsLayout } from "@/app/layouts/docs-layout";
 import { setCommonHeaders } from "@/app/headers";
 import { Debug } from "@/app/pages/debug";
+import { DocsPage } from "@/app/pages/docs";
 import { Home } from "@/app/pages/home";
 import { SandboxMessenger } from "@/app/pages/sandbox-messenger";
 import { SandboxProvider } from "@/app/pages/sandbox-provider";
@@ -30,7 +32,13 @@ export default defineApp([
   async ({ request, response, ctx }) => {
     const pathname = new URL(request.url).pathname;
 
-    if (pathname === "/" || pathname.startsWith("/api/v1/")) {
+    if (
+      pathname === "/" ||
+      pathname === "/docs" ||
+      pathname === "/docs/" ||
+      pathname.startsWith("/docs/") ||
+      pathname.startsWith("/api/v1/")
+    ) {
       return;
     }
 
@@ -71,7 +79,20 @@ export default defineApp([
   ...providerRoutes,
   ...providerDemoRoutes,
   ...providerMockRoutes,
-  render(StaticDocument, [route("/", Home)], { rscPayload: false }),
+  render(
+    StaticDocument,
+    [
+      route("/", Home),
+      layout(DocsLayout, [
+        route("/docs", DocsPage),
+        route("/docs/", DocsPage),
+        route("/docs/:slug", DocsPage),
+      ]),
+    ],
+    {
+      rscPayload: false,
+    },
+  ),
   render(Document, [
     route("/debug", Debug),
     route("/sandbox/messenger", SandboxMessenger),
