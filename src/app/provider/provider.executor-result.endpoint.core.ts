@@ -22,11 +22,13 @@ type AuthResult =
 
 export type ExecutorResultEndpointDeps = {
   getRequestId: (request: Request) => string;
+  getIdempotencyHeader: (request: Request) => string | null;
   readJson: <T>(request: Request) => Promise<T>;
   jsonResponse: (input: {
     requestId: string;
     body: Record<string, unknown>;
     status?: number;
+    idempotentReplay?: boolean;
   }) => Response;
   jsonError: (input: {
     requestId: string;
@@ -34,6 +36,13 @@ export type ExecutorResultEndpointDeps = {
     code: string;
     message: string;
     details?: unknown;
+  }) => Response;
+  replayIdempotentResponse: (input: {
+    requestId: string;
+    replay: {
+      status: number;
+      body: Record<string, unknown>;
+    };
   }) => Response;
   authenticateProviderRequest: (input: {
     request: Request;
@@ -44,6 +53,35 @@ export type ExecutorResultEndpointDeps = {
     providerId: string;
     userId: string;
   }) => Promise<ProviderUserContext>;
+  saveProviderUserContext: (
+    context: ProviderUserContext,
+  ) => Promise<ProviderUserContext>;
+  buildIdempotencyKey: (input: {
+    method: string;
+    path: string;
+    idempotencyKey: string;
+  }) => string;
+  hashIdempotencyRequest: (input: {
+    method: string;
+    path: string;
+    body: unknown;
+  }) => Promise<string>;
+  readIdempotencyReplay: (input: {
+    context: ProviderUserContext;
+    storageKey: string;
+    requestHash: string;
+  }) =>
+    | { kind: "miss" }
+    | { kind: "conflict" }
+    | { kind: "replay"; status: number; body: Record<string, unknown> };
+  storeIdempotencyReplay: (input: {
+    context: ProviderUserContext;
+    storageKey: string;
+    requestHash: string;
+    status: number;
+    body: Record<string, unknown>;
+    now?: string;
+  }) => ProviderUserContext;
   handleProviderExecutorResult: (input: {
     input: ProviderExecutorResultInput;
     providerConfig: {
@@ -71,10 +109,6 @@ export const createHandleExecutorResultEndpoint = (
 
     try {
       const input = await deps.readJson<ProviderExecutorResultInput>(request);
-      await deps.loadOrCreateProviderUserContext({
-        providerId: input.integration_id,
-        userId: input.user_id,
-      });
       const auth = deps.authenticateProviderRequest({
         request,
         providerId: input.integration_id,
@@ -90,6 +124,69 @@ export const createHandleExecutorResultEndpoint = (
         });
       }
 
+      const idempotencyKey = deps.getIdempotencyHeader(request);
+
+      if (idempotencyKey) {
+        const context = await deps.loadOrCreateProviderUserContext({
+          providerId: input.integration_id,
+          userId: input.user_id,
+        });
+        const storageKey = deps.buildIdempotencyKey({
+          method: request.method,
+          path: "/api/v1/webhooks/executor",
+          idempotencyKey,
+        });
+        const requestHash = await deps.hashIdempotencyRequest({
+          method: request.method,
+          path: storageKey,
+          body: input,
+        });
+        const replay = deps.readIdempotencyReplay({
+          context,
+          storageKey,
+          requestHash,
+        });
+
+        if (replay.kind === "replay") {
+          return deps.replayIdempotentResponse({ requestId, replay });
+        }
+
+        if (replay.kind === "conflict") {
+          return deps.jsonError({
+            requestId,
+            status: 409,
+            code: "idempotency_conflict",
+            message: "Idempotency key was reused with a different request body.",
+          });
+        }
+
+        const result = await deps.handleProviderExecutorResult({
+          input,
+          providerConfig: auth.providerConfig,
+          requestId,
+        });
+        const nextContext = deps.storeIdempotencyReplay({
+          context: await deps.loadOrCreateProviderUserContext({
+            providerId: input.integration_id,
+            userId: input.user_id,
+          }),
+          storageKey,
+          requestHash,
+          status: 200,
+          body: result,
+        });
+        await deps.saveProviderUserContext(nextContext);
+
+        return deps.jsonResponse({
+          requestId,
+          body: result,
+        });
+      }
+
+      await deps.loadOrCreateProviderUserContext({
+        providerId: input.integration_id,
+        userId: input.user_id,
+      });
       const result = await deps.handleProviderExecutorResult({
         input,
         providerConfig: auth.providerConfig,
