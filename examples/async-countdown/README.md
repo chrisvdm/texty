@@ -13,7 +13,7 @@ It shows one narrow flow:
 
 ## Files
 
-- `texty.json`
+- `familiar.json`
   - sync manifest for the countdown tool
 - `executor.mjs`
   - countdown state and tool execution logic

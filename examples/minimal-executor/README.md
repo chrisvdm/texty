@@ -15,7 +15,7 @@ It does one thing:
 
 The sync contract for this example lives in:
 
-- `texty.json`
+- `familiar.json`
 
 That file is the source of truth for what familiar should extract and send.
 
@@ -35,7 +35,7 @@ It makes the side effect obvious without forcing someone to read raw response JS
 The flow is:
 
 1. the browser sends a normal user message
-2. the example syncs `texty.json` with familiar
+2. the example syncs `familiar.json` with familiar
 3. the example sends the message to familiar
 4. familiar decides whether to reply normally, ask a follow-up, or call the tool
 5. if the tool runs, familiar sends schema-valid arguments to the external executor
@@ -56,11 +56,11 @@ So the person trying the demo can immediately see:
   - handles auth, JSON parsing, and routes
 - `executor.mjs`
   - the executor implementation itself
-  - imports the synced tool definitions from `texty.json`
+  - imports the synced tool definitions from `familiar.json`
   - exports the function that handles a familiar tool call
 - `index.html`
   - the local browser UI shown at `http://localhost:8787`
-- `texty.json`
+- `familiar.json`
   - the sync manifest
   - the source of truth for the tool schema familiar must satisfy
 
@@ -78,7 +78,7 @@ executeToolCall({ payload, defaultUserId })
 
 Where `payload` is the request familiar sends to `POST /tools/execute`.
 
-familiar normally sends arguments that already match the schema from `texty.json`.
+familiar normally sends arguments that already match the schema from `familiar.json`.
 For this demo, that usually means `todos.add` receives:
 
 ```json
@@ -237,7 +237,7 @@ After you send a message:
 1. familiar receives the user input.
 2. familiar decides whether a tool should run.
 3. If needed, familiar sends `POST /tools/execute` to your local executor.
-4. familiar sends your executor validated arguments that match the schema in `texty.json`.
+4. familiar sends your executor validated arguments that match the schema in `familiar.json`.
 5. Your executor updates the todo list and returns structured JSON.
 6. familiar turns that result into the assistant reply.
 7. The browser shows the updated todo list state.

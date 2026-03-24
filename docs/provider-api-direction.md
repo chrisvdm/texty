@@ -137,7 +137,7 @@ The full policy model is described in `docs/architecture-foundations.md`.
 
 Integrations should sync the allowed tools for a given user into familiar.
 
-The preferred source of that sync payload is a manifest file named `texty.json`.
+The preferred source of that sync payload is a manifest file named `familiar.json`.
 
 This should happen:
 

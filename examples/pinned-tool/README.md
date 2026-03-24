@@ -11,7 +11,7 @@ It shows:
 
 ## Files
 
-- `texty.json`
+- `familiar.json`
   - sync manifest for two simple verbatim capture tools
 - `executor.mjs`
   - in-memory capture logic for notes and ideas

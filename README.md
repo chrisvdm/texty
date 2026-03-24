@@ -118,7 +118,7 @@ flowchart LR
 This is the smallest useful setup path for connecting code to familiar and getting a working request through the system.
 
 1. Create a connection and get a token.
-2. Define your tools in `texty.json`.
+2. Define your tools in `familiar.json`.
 3. Sync the tools familiar can use for a user.
 4. Send user input to familiar.
 5. Let familiar call the correct tool target when work should happen.
@@ -154,7 +154,7 @@ And there is a dedicated pinned tool example:
 If you are new to this, think of it like this:
 
 - familiar is the thing the user talks to
-- `texty.json` is the contract that tells familiar what tools exist and what arguments they need
+- `familiar.json` is the contract that tells familiar what tools exist and what arguments they need
 - your code or webhook is the thing that actually does the work once familiar has already extracted those arguments
 - the example folder shows the smallest possible version of that target
 
@@ -173,7 +173,7 @@ Core terms:
 
 ## Tool Contract
 
-`texty.json` is the sync manifest.
+`familiar.json` is the sync manifest.
 
 It is the source of truth for:
 
@@ -205,7 +205,7 @@ That token identifies which connected system is calling familiar.
 
 Use this endpoint to tell familiar which tools are available for a specific user.
 
-In practice, this payload should usually come from your `texty.json` file.
+In practice, this payload should usually come from your `familiar.json` file.
 
 ```shell
 curl -X POST http://localhost:5173/api/v1/integrations/integration_a/users/user_123/tools/sync \
@@ -338,7 +338,7 @@ But the executor should not have to decide intent again or parse the user's natu
 
 Example:
 
-If `texty.json` says `todos.add` requires:
+If `familiar.json` says `todos.add` requires:
 
 ```json
 {

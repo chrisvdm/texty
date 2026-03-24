@@ -1,4 +1,4 @@
-import manifest from "./texty.json" with { type: "json" };
+import manifest from "./familiar.json" with { type: "json" };
 
 const todoStore = new Map();
 

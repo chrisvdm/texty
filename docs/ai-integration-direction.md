@@ -54,7 +54,7 @@ If the API surface is too large, too flexible, or too inconsistent:
 A new integration should have one clear first success path:
 
 1. configure a connection
-2. define tools in `texty.json`
+2. define tools in `familiar.json`
 3. sync that manifest into familiar
 4. send conversation input
 5. let familiar trigger the correct target with schema-valid arguments
@@ -166,7 +166,7 @@ That is the main thing a connected system should send repeatedly.
 
 Tool sync should stay easy to understand:
 
-- here is the `texty.json` manifest for this user
+- here is the `familiar.json` manifest for this user
 - here are the tools this user can use
 - here is the schema familiar must satisfy before executing them
 
@@ -253,7 +253,7 @@ It may help to eventually support one compact registration payload that says:
 - what tools it exposes
 - where each tool should be triggered
 
-That is now the preferred direction for examples through `texty.json`.
+That is now the preferred direction for examples through `familiar.json`.
 
 ### 3. Should a one-tool integration be even simpler?
 
