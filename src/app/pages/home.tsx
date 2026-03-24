@@ -1,56 +1,63 @@
-import styles from "./home.module.css";
-
 const EXAMPLES = [
   {
     title: "Minimal Executor",
     href: "/sandbox/demo-executor",
     summary:
-      "The smallest end-to-end flow: sync tools, send input, trigger a real executor, and watch the thread update.",
-    accent: "sync tool execution",
+      "Start here if you want to see the smallest useful setup. familiar receives a message, chooses a tool, and calls real code.",
   },
   {
     title: "Async Countdown",
     href: "/sandbox/async-countdown",
     summary:
-      "Starts immediately, finishes later, and posts the delayed result back through the executor webhook.",
-    accent: "async executor callback",
+      "See how delayed work fits into the conversation. The executor answers quickly, then sends the final result back later.",
   },
   {
     title: "Pinned Tool",
     href: "/sandbox/pinned-tool",
     summary:
-      "Shows explicit tool calls with a thread-level pinned tool that stays in place until the user ends or switches it.",
-    accent: "explicit tool calls",
+      "See explicit tool calls in action. A user pins a tool, keeps talking, and familiar keeps routing that text to the same place.",
   },
 ];
 
 export const Home = () => (
-  <main className={styles.page}>
-    <section className={styles.hero}>
-      <p className={styles.eyebrow}>familiar</p>
-      <h1 className={styles.title}>Examples for the current MVP.</h1>
-      <p className={styles.copy}>
-        familiar is a conversation layer for executable systems. These hosted
-        examples show the product shape without asking you to wire anything up
-        first.
-      </p>
-      <div className={styles.swatches} aria-hidden="true">
-        <span className={styles.swatchPrimary} />
-        <span className={styles.swatchSecondary} />
-        <span className={styles.swatchSoft} />
-        <span className={styles.swatchWhite} />
-      </div>
-    </section>
+  <main className="landing-page">
+    <section className="landing-shell">
+      <header className="landing-hero">
+        <p className="landing-eyebrow">familiar</p>
+        <h1 className="landing-title">
+          A conversation layer for tools, workflows, and useful code.
+        </h1>
+        <p className="landing-copy">
+          familiar sits between a person and an executor. It keeps the thread,
+          asks follow-up questions when something is missing, chooses the right
+          tool, and passes clean input to the system that does the work.
+        </p>
+        <p className="landing-copy landing-copy-soft">
+          The goal is simple: make executable systems easier for junior
+          developers, product teams, and AI-built tools to understand and use.
+        </p>
+      </header>
 
-    <section className={styles.grid}>
-      {EXAMPLES.map((example) => (
-        <a key={example.href} className={styles.card} href={example.href}>
-          <span className={styles.cardTag}>{example.accent}</span>
-          <h2 className={styles.cardTitle}>{example.title}</h2>
-          <p className={styles.cardCopy}>{example.summary}</p>
-          <span className={styles.cardLink}>Open demo</span>
-        </a>
-      ))}
+      <section className="landing-section">
+        <div className="landing-section-copy">
+          <p className="landing-section-label">What to open</p>
+          <h2 className="landing-section-title">Three examples. One product idea.</h2>
+          <p className="landing-section-body">
+            Each example shows a different part of the same flow. Pick the one
+            that matches the question you have right now.
+          </p>
+        </div>
+
+        <div className="landing-grid">
+          {EXAMPLES.map((example) => (
+            <a key={example.href} className="landing-card" href={example.href}>
+              <h3 className="landing-card-title">{example.title}</h3>
+              <p className="landing-card-copy">{example.summary}</p>
+              <span className="landing-card-link">Open example</span>
+            </a>
+          ))}
+        </div>
+      </section>
     </section>
   </main>
 );

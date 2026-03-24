@@ -3,6 +3,7 @@ import { defineApp } from "rwsdk/worker";
 
 import { ChatSessionDurableObject } from "@/app/chat/chat-session-do";
 import { Document } from "@/app/document";
+import { StaticDocument } from "@/app/static-document";
 import { setCommonHeaders } from "@/app/headers";
 import { Debug } from "@/app/pages/debug";
 import { Home } from "@/app/pages/home";
@@ -29,11 +30,18 @@ export default defineApp([
   async ({ request, response, ctx }) => {
     const pathname = new URL(request.url).pathname;
 
-    if (pathname.startsWith("/api/v1/")) {
+    if (pathname === "/" || pathname.startsWith("/api/v1/")) {
       return;
     }
 
-    const existingSession = await browserSessionStore.load(request);
+    let existingSession: Awaited<ReturnType<typeof browserSessionStore.load>> | null =
+      null;
+
+    try {
+      existingSession = await browserSessionStore.load(request);
+    } catch {
+      existingSession = null;
+    }
 
     if (existingSession) {
       const normalizedSession = normalizeBrowserSession(existingSession);
@@ -63,8 +71,8 @@ export default defineApp([
   ...providerRoutes,
   ...providerDemoRoutes,
   ...providerMockRoutes,
+  render(StaticDocument, [route("/", Home)], { rscPayload: false }),
   render(Document, [
-    route("/", Home),
     route("/debug", Debug),
     route("/sandbox/messenger", SandboxMessenger),
     route("/sandbox/provider", SandboxProvider),
