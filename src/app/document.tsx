@@ -10,6 +10,7 @@ export const Document: React.FC<{ children: React.ReactNode }> = ({
         name="description"
         content="familiar is a hosted conversation API for tools, threads, and memory."
       />
+      <link rel="icon" href="/familiar-mark.svg" type="image/svg+xml" />
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
       <link

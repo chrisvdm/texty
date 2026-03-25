@@ -21,6 +21,16 @@ export const DocsLayout = ({ children, requestInfo }: LayoutProps) => {
 
         <section className="docs-layout">
           <aside className="docs-sidebar">
+            <a className="docs-brand" href="/">
+              <img
+                className="docs-brand-logo"
+                src="/familiar-mark.svg"
+                alt="familiar logo"
+                width="30"
+                height="30"
+              />
+              <span className="docs-brand-name">familiar</span>
+            </a>
             <p className="landing-section-label">Docs</p>
             <nav aria-label="Documentation">
               <ol className="docs-nav">

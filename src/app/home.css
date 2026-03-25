@@ -44,8 +44,21 @@
   padding: 28px 4px 24px;
 }
 
+.landing-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.landing-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
 .landing-eyebrow {
-  margin: 0 0 16px;
+  margin: 0;
   color: var(--landing-mist);
   font-family: "Space Grotesk", sans-serif;
   font-size: 12px;
@@ -102,6 +115,28 @@
 
 .docs-sidebar {
   padding: 8px 4px 0;
+}
+
+.docs-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: var(--landing-ink);
+  text-decoration: none;
+}
+
+.docs-brand-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.docs-brand-name {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
 }
 
 .docs-nav {

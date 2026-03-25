@@ -27,7 +27,16 @@ export const Home = () => (
         <a className="landing-docs-link" href="/setup">Setup</a>
       </div>
       <header className="landing-hero">
-        <p className="landing-eyebrow">familiar</p>
+        <div className="landing-brand-row">
+          <img
+            className="landing-logo"
+            src="/familiar-mark.svg"
+            alt="familiar logo"
+            width="44"
+            height="44"
+          />
+          <p className="landing-eyebrow">familiar</p>
+        </div>
         <h1 className="landing-title">
           A conversation layer for tools, workflows, and useful code.
         </h1>
