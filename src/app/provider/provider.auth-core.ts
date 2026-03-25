@@ -13,6 +13,7 @@ type ProviderAuthFailure = {
 
 type ProviderAuthSuccess = {
   ok: true;
+  providerId: string;
   providerConfig: ProviderConfig;
 };
 
@@ -123,7 +124,7 @@ export const normalizeProviderConfigMap = (
   return Object.fromEntries(entries);
 };
 
-const getBearerToken = (request: Request) => {
+export const getBearerToken = (request: Request) => {
   const authorization = request.headers.get("Authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
@@ -142,7 +143,7 @@ export const authenticateProviderRequestWithConfigs = ({
   logAudit,
 }: {
   request: Request;
-  providerId: string;
+  providerId?: string;
   requestId?: string;
   providerConfigs: Record<string, ProviderConfig>;
   logAudit?: ProviderAuditLogger;
@@ -153,7 +154,7 @@ export const authenticateProviderRequestWithConfigs = ({
     logAudit?.({
       event: "provider.auth.failed",
       requestId,
-      providerId,
+      providerId: providerId ?? "unknown",
       status: "error",
       code: "unauthenticated",
       detail: "Missing bearer token",
@@ -168,13 +169,67 @@ export const authenticateProviderRequestWithConfigs = ({
     };
   }
 
-  const providerConfig = providerConfigs[providerId];
+  const matchingProviderIds = Object.entries(providerConfigs)
+    .filter(([, providerConfig]) => providerConfig.token === token)
+    .map(([configuredProviderId]) => configuredProviderId);
+
+  const resolvedProviderId = providerId?.trim()
+    ? providerId
+    : matchingProviderIds.length === 1
+      ? matchingProviderIds[0]
+      : null;
+
+  if (!resolvedProviderId) {
+    logAudit?.({
+      event: "provider.auth.failed",
+      requestId,
+      providerId: providerId ?? "unknown",
+      status: "error",
+      code: "forbidden",
+      detail:
+        matchingProviderIds.length > 1
+          ? "Ambiguous provider token"
+          : "Unknown provider token",
+    });
+    return {
+      ok: false,
+      status: 403,
+      error: {
+        code: "forbidden",
+        message:
+          matchingProviderIds.length > 1
+            ? "Bearer token matches multiple setups. Include integration_id until the token is unique."
+            : "Unknown provider.",
+      },
+    };
+  }
+
+  if (providerId?.trim() && !matchingProviderIds.includes(providerId)) {
+    logAudit?.({
+      event: "provider.auth.failed",
+      requestId,
+      providerId,
+      status: "error",
+      code: "forbidden",
+      detail: "Bearer token does not match requested provider",
+    });
+    return {
+      ok: false,
+      status: 403,
+      error: {
+        code: "forbidden",
+        message: "Invalid provider token.",
+      },
+    };
+  }
+
+  const providerConfig = providerConfigs[resolvedProviderId];
 
   if (!providerConfig) {
     logAudit?.({
       event: "provider.auth.failed",
       requestId,
-      providerId,
+      providerId: resolvedProviderId,
       status: "error",
       code: "forbidden",
       detail: "Unknown provider",
@@ -193,7 +248,7 @@ export const authenticateProviderRequestWithConfigs = ({
     logAudit?.({
       event: "provider.auth.failed",
       requestId,
-      providerId,
+      providerId: resolvedProviderId,
       status: "error",
       code: "forbidden",
       detail: "Invalid provider token",
@@ -211,12 +266,13 @@ export const authenticateProviderRequestWithConfigs = ({
   logAudit?.({
     event: "provider.auth.succeeded",
     requestId,
-    providerId,
+    providerId: resolvedProviderId,
     status: "ok",
   });
 
   return {
     ok: true,
+    providerId: resolvedProviderId,
     providerConfig,
   };
 };

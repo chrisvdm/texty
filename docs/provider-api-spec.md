@@ -30,9 +30,21 @@ It focuses on:
 
 ## Scope
 
-This is the target API specification.
+This document describes the long-term target contract and notes where the current MVP is intentionally simpler.
 
-It describes the intended service contract, not a claim that every endpoint already exists in the current runtime.
+Current MVP public model:
+
+- `POST /api/v1/accounts` creates an account and returns the first API token
+- `GET /api/v1/account` resolves the account from that bearer token
+- the bearer token identifies the current default setup
+- `integration_id` is optional in the public happy path for now
+- `POST /api/v1/input` may also accept optional `tools` during development bootstrap
+
+Long-term target model:
+
+- one account can have many integrations
+- one integration can have many end users
+- `integration_id` differentiates those setups explicitly
 
 If you want the simplest path to connect an external script or service first, read `docs/provider-quickstart.md` before this document.
 
@@ -40,15 +52,16 @@ If you want the simplest path to connect an external script or service first, re
 
 Every connected-system request to familiar should be authenticated.
 
-Recommended default:
+Current MVP default:
 
-- `Authorization: Bearer <integration_token>`
+- `Authorization: Bearer <api_token>`
 
-That token should identify:
+In the current MVP, that token identifies:
 
-- the integration
-- the environment
-- the allowed API scope
+- the account
+- the current default setup
+
+Long term, a token may instead be scoped to an explicit integration or environment.
 
 familiar should never accept unauthenticated requests for:
 
@@ -59,7 +72,7 @@ familiar should never accept unauthenticated requests for:
 
 ## Ownership Rule
 
-Every request is scoped to:
+Long-term target requests are scoped to:
 
 - `integration_id`
 - `user_id`
@@ -74,6 +87,11 @@ familiar must verify that the authenticated integration is allowed to act for th
 Current naming note:
 
 - the public wire format uses `integration_id`
+
+Current MVP note:
+
+- the bearer token can resolve the active setup without requiring explicit `integration_id`
+- compatibility integration-scoped routes still exist
 
 ## Common Headers
 

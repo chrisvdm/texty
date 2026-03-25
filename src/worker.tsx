@@ -2,6 +2,7 @@ import { layout, render, route } from "rwsdk/router";
 import { defineApp } from "rwsdk/worker";
 
 import { ChatSessionDurableObject } from "@/app/chat/chat-session-do";
+import { AccountRegistryDurableObject } from "@/app/account/account-registry-do";
 import { Document } from "@/app/document";
 import { StaticDocument } from "@/app/static-document";
 import { DocsLayout } from "@/app/layouts/docs-layout";
@@ -9,12 +10,14 @@ import { setCommonHeaders } from "@/app/headers";
 import { Debug } from "@/app/pages/debug";
 import { DocsPage } from "@/app/pages/docs";
 import { Home } from "@/app/pages/home";
+import { Setup } from "@/app/pages/setup";
 import { SandboxMessenger } from "@/app/pages/sandbox-messenger";
 import { SandboxProvider } from "@/app/pages/sandbox-provider";
 import { providerRoutes } from "@/app/provider/provider.routes";
 import { providerDemoRoutes } from "@/app/provider/provider.demo.routes";
 import { providerMockRoutes } from "@/app/provider/provider.mock.routes";
 import { ProviderUserContextDurableObject } from "@/app/provider/provider-user-context-do";
+import { accountRoutes } from "@/app/account/account.routes";
 import { BrowserSessionDurableObject } from "@/app/session/browser-session-do";
 import {
   browserSessionStore,
@@ -76,6 +79,7 @@ export default defineApp([
 
     ctx.session = session;
   },
+  ...accountRoutes,
   ...providerRoutes,
   ...providerDemoRoutes,
   ...providerMockRoutes,
@@ -95,12 +99,14 @@ export default defineApp([
   ),
   render(Document, [
     route("/debug", Debug),
+    route("/setup", Setup),
     route("/sandbox/messenger", SandboxMessenger),
     route("/sandbox/provider", SandboxProvider),
   ]),
 ]);
 
 export {
+  AccountRegistryDurableObject,
   BrowserSessionDurableObject,
   ChatSessionDurableObject,
   ProviderUserContextDurableObject,

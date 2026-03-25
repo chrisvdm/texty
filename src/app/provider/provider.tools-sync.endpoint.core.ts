@@ -1,8 +1,17 @@
 import type { ProviderToolSyncInput, ProviderUserContext } from "./provider.types.ts";
+import {
+  requireNonEmptyString,
+  resolveProviderIdFromInput,
+} from "./provider.endpoint-input.ts";
+
+type NormalizedProviderToolSyncInput = ProviderToolSyncInput & {
+  integration_id: string;
+};
 
 type AuthResult =
   | {
       ok: true;
+      providerId: string;
     }
   | {
       ok: false;
@@ -45,9 +54,9 @@ export type ToolsSyncEndpointDeps = {
   }) => Response;
   authenticateProviderRequest: (input: {
     request: Request;
-    providerId: string;
+    providerId?: string;
     requestId: string;
-  }) => AuthResult;
+  }) => AuthResult | Promise<AuthResult>;
   loadOrCreateProviderUserContext: (input: {
     providerId: string;
     userId: string;
@@ -82,7 +91,7 @@ export type ToolsSyncEndpointDeps = {
     now?: string;
   }) => ProviderUserContext;
   syncProviderTools: (
-    input: ProviderToolSyncInput,
+    input: NormalizedProviderToolSyncInput,
     requestId?: string,
   ) => Promise<Record<string, unknown>>;
   isProviderRateLimitError: (
@@ -97,8 +106,8 @@ export const createHandleToolsSyncEndpoint = (deps: ToolsSyncEndpointDeps) => {
   }: {
     request: Request;
     params: {
-      integrationId: string;
-      userId: string;
+      integrationId?: string;
+      userId?: string;
     };
   }) => {
     const requestId = deps.getRequestId(request);
@@ -112,7 +121,7 @@ export const createHandleToolsSyncEndpoint = (deps: ToolsSyncEndpointDeps) => {
       });
     }
 
-    const auth = deps.authenticateProviderRequest({
+    const auth = await deps.authenticateProviderRequest({
       request,
       providerId: params.integrationId,
       requestId,
@@ -130,33 +139,54 @@ export const createHandleToolsSyncEndpoint = (deps: ToolsSyncEndpointDeps) => {
     try {
       const input = await deps.readJson<ProviderToolSyncInput>(request);
       const idempotencyKey = deps.getIdempotencyHeader(request);
+      const providerId = resolveProviderIdFromInput({
+        explicitProviderId: input.integration_id ?? params.integrationId,
+        authenticatedProviderId: auth.providerId,
+      });
+      const userId = requireNonEmptyString(input.user_id, "user_id");
+      const normalizedInput = {
+        ...input,
+        integration_id: providerId,
+        user_id: userId,
+      } satisfies NormalizedProviderToolSyncInput;
 
-      if (
-        input.integration_id !== params.integrationId ||
-        input.user_id !== params.userId
-      ) {
+      if (params.integrationId && providerId !== params.integrationId) {
         return deps.jsonError({
           requestId,
           status: 403,
           code: "forbidden",
-          message: "Integration or user mismatch.",
+          message: "Integration mismatch.",
+        });
+      }
+
+      if (params.userId && userId !== params.userId) {
+        return deps.jsonError({
+          requestId,
+          status: 403,
+          code: "forbidden",
+          message: "User mismatch.",
         });
       }
 
       if (idempotencyKey) {
         const context = await deps.loadOrCreateProviderUserContext({
-          providerId: input.integration_id,
-          userId: input.user_id,
+          providerId,
+          userId,
         });
         const storageKey = deps.buildIdempotencyKey({
           method: request.method,
-          path: `/api/v1/integrations/${params.integrationId}/users/${params.userId}/tools/sync`,
+          path:
+            params.integrationId && params.userId
+              ? `/api/v1/integrations/${params.integrationId}/users/${params.userId}/tools/sync`
+              : params.userId
+                ? `/api/v1/users/${params.userId}/tools/sync`
+                : "/api/v1/tools/sync",
           idempotencyKey,
         });
         const requestHash = await deps.hashIdempotencyRequest({
           method: request.method,
           path: storageKey,
-          body: input,
+          body: normalizedInput,
         });
         const replay = deps.readIdempotencyReplay({
           context,
@@ -177,11 +207,11 @@ export const createHandleToolsSyncEndpoint = (deps: ToolsSyncEndpointDeps) => {
           });
         }
 
-        const result = await deps.syncProviderTools(input, requestId);
+        const result = await deps.syncProviderTools(normalizedInput, requestId);
         const nextContext = deps.storeIdempotencyReplay({
           context: await deps.loadOrCreateProviderUserContext({
-            providerId: input.integration_id,
-            userId: input.user_id,
+            providerId,
+            userId,
           }),
           storageKey,
           requestHash,
@@ -196,7 +226,7 @@ export const createHandleToolsSyncEndpoint = (deps: ToolsSyncEndpointDeps) => {
         });
       }
 
-      const result = await deps.syncProviderTools(input, requestId);
+      const result = await deps.syncProviderTools(normalizedInput, requestId);
       return deps.jsonResponse({
         requestId,
         body: result,

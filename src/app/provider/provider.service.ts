@@ -68,6 +68,18 @@ import {
   saveProviderUserContext,
 } from "./provider.storage";
 
+type NormalizedProviderConversationInput = ProviderConversationInput & {
+  integration_id: string;
+};
+
+type NormalizedProviderExecutorResultInput = ProviderExecutorResultInput & {
+  integration_id: string;
+};
+
+type NormalizedProviderToolSyncInput = ProviderToolSyncInput & {
+  integration_id: string;
+};
+
 type OpenRouterResponse = {
   choices?: Array<{
     message?: {
@@ -189,6 +201,25 @@ const buildChannelKey = (channel: ProviderChannelInput) =>
 
 const getRequestTimeZone = (timeZone?: string | null) =>
   resolveConversationTimeZone(timeZone);
+
+const normalizeAllowedTools = (
+  tools: Array<{
+    tool_name: string;
+    description: string;
+    input_schema: Record<string, unknown>;
+    executor_payload?: unknown;
+    policy?: Record<string, unknown>;
+    status?: "active" | "disabled";
+  }>,
+): AllowedTool[] =>
+  tools.map((tool) => ({
+    toolName: tool.tool_name,
+    description: tool.description,
+    inputSchema: tool.input_schema,
+    executorPayload: tool.executor_payload,
+    policy: tool.policy ?? {},
+    status: tool.status ?? "active",
+  }));
 
 export const WEB_PROVIDER_ID = "texty_web";
 
@@ -1525,7 +1556,7 @@ const refreshProviderMemories = async ({
 };
 
 export const syncProviderTools = async (
-  input: ProviderToolSyncInput,
+  input: NormalizedProviderToolSyncInput,
   requestId?: string,
 ) => {
   const context = await loadOrCreateProviderUserContext({
@@ -1537,14 +1568,7 @@ export const syncProviderTools = async (
 
   const nextContext: ProviderUserContext = {
     ...rateLimitedContext,
-    allowedTools: input.tools.map((tool) => ({
-      toolName: tool.tool_name,
-      description: tool.description,
-      inputSchema: tool.input_schema,
-      executorPayload: tool.executor_payload,
-      policy: tool.policy ?? {},
-      status: tool.status ?? "active",
-    })),
+    allowedTools: normalizeAllowedTools(input.tools),
   };
 
   await saveProviderUserContext(nextContext);
@@ -1870,7 +1894,7 @@ export const handleProviderConversationInput = async ({
   providerConfig,
   requestId,
 }: {
-  input: ProviderConversationInput;
+  input: NormalizedProviderConversationInput;
   providerConfig: ProviderConfig;
   requestId?: string;
 }) => {
@@ -1887,6 +1911,12 @@ export const handleProviderConversationInput = async ({
   }
 
   context = enforceConversationRateLimit({ context });
+  if (input.tools) {
+    context = {
+      ...context,
+      allowedTools: normalizeAllowedTools(input.tools),
+    };
+  }
   context = await saveProviderUserContext(context);
 
   logProviderAudit({
@@ -2393,7 +2423,7 @@ export const handleProviderExecutorResult = async ({
   providerConfig,
   requestId,
 }: {
-  input: ProviderExecutorResultInput;
+  input: NormalizedProviderExecutorResultInput;
   providerConfig: ProviderConfig;
   requestId?: string;
 }) => {

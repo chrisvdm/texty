@@ -33,38 +33,40 @@ familiar handles the conversation. Your code handles the work.
 
 ## What You Need
 
-To connect something to familiar, you need three things:
+To connect something to familiar in the current MVP, you need three things:
 
-1. An integration id
-2. A shared API token
-3. A URL familiar can call when work should run
+1. an API token
+2. a `user_id`
+3. a URL familiar can call when work should run
 
-That is enough for a first integration.
+That is enough for a first working setup.
 
-## Step 1: Configure An Integration
+Long term, explicit `integration_id` will matter again once one account can manage multiple setups.
 
-In local development, add connection config to `.dev.vars`:
+## Step 1: Create an account and get a token
 
 ```shell
-TEXTY_EXECUTOR_CONFIG='{"integration_a":{"token":"dev-token","baseUrl":"http://localhost:8787"}}'
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/accounts \
+  -H "Content-Type: application/json" \
+  -d '{}'
 ```
 
-Meaning:
+This returns:
 
-- `integration_a` is the integration id
-- `dev-token` is the bearer token used for this integration
-- `baseUrl` is where familiar will call your code
+- `account.id`
+- the first API token
+
+That token is the main machine credential in the current MVP.
 
 ## Step 2: Sync Allowed Tools
 
 Tell familiar which tools a given user is allowed to use.
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/integrations/integration_a/users/user_123/tools/sync \
-  -H "Authorization: Bearer dev-token" \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/users/user_123/tools/sync \
+  -H "Authorization: Bearer fam_your_token" \
   -H "Content-Type: application/json" \
   -d '{
-    "integration_id": "integration_a",
     "user_id": "user_123",
     "tools": [
       {
@@ -85,18 +87,22 @@ curl -X POST http://localhost:5173/api/v1/integrations/integration_a/users/user_
   }'
 ```
 
-This gives familiar permission to reason over that tool for that integration/user pair.
+This gives familiar permission to reason over that tool for that setup/user pair.
+
+Current MVP shortcut:
+
+- you can also send `tools` directly on `POST /api/v1/input`
+- that is useful while setup/admin flows are still evolving
 
 ## Step 3: Send Conversation Input
 
 Send a normal message into familiar.
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/input \
-  -H "Authorization: Bearer dev-token" \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/input \
+  -H "Authorization: Bearer fam_your_token" \
   -H "Content-Type: application/json" \
   -d '{
-    "integration_id": "integration_a",
     "user_id": "user_123",
     "input": {
       "kind": "text",
@@ -176,11 +182,10 @@ familiar will return that execution state in the conversation response and, when
 When the task actually finishes, call familiar back:
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/webhooks/executor \
-  -H "Authorization: Bearer dev-token" \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/webhooks/executor \
+  -H "Authorization: Bearer fam_your_token" \
   -H "Content-Type: application/json" \
   -d '{
-    "integration_id": "integration_a",
     "user_id": "user_123",
     "thread_id": "thread_abc",
     "result": {
@@ -193,7 +198,6 @@ curl -X POST http://localhost:5173/api/v1/webhooks/executor \
 
 Keep this payload minimal unless you need more tracing:
 
-- `integration_id`
 - `user_id`
 - `thread_id`
 - `result.execution_id` when you have one

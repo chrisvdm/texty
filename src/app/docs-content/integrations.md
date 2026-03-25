@@ -4,6 +4,8 @@ An integration is one end-to-end _familiar_ configuration for a specific app, bo
 
 It is the main boundary between _familiar_ and an external system.
 
+In the current MVP happy path, the bearer token can identify that setup directly.
+
 ## What an integration owns
 
 An integration is responsible for:
@@ -29,7 +31,7 @@ That tool list should come from `*familiar*.json`.
 The main sync endpoint is:
 
 ```text
-POST /api/v1/integrations/:integration_id/users/:user_id/tools/sync
+POST /api/v1/users/:user_id/tools/sync
 ```
 
 ## Sending input
@@ -40,14 +42,13 @@ The main input endpoint is:
 POST /api/v1/input
 ```
 
-Send normalized text plus the integration, user, and channel context. _familiar_ then decides whether to reply directly, ask for clarification, or invoke a tool.
+Send normalized text plus the user and channel context. _familiar_ then decides whether to reply directly, ask for clarification, or invoke a tool.
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/input \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/input \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
-    "integration_id": "integration_a",
     "user_id": "user_123",
     "input": {
       "kind": "text",
@@ -64,7 +65,7 @@ curl -X POST http://localhost:5173/api/v1/input \
 
 _familiar_ uses:
 
-- `integration_id`
+- the authenticated token
 - `user_id`
 - `channel.type`
 - `channel.id`
@@ -83,11 +84,10 @@ If `thread_id` is missing, _familiar_ can still continue the correct thread base
 ### Tool sync example
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/integrations/integration_a/users/user_123/tools/sync \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/users/user_123/tools/sync \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
-    "integration_id": "integration_a",
     "user_id": "user_123",
     "tools": [
       {

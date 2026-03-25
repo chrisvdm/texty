@@ -81,6 +81,47 @@ test("tools sync endpoint includes request tracing on success", async () => {
   });
 });
 
+test("tools sync endpoint can derive integration_id from auth on token-scoped route", async () => {
+  let seenIntegrationId: string | undefined;
+
+  const endpoint = createHandleToolsSyncEndpoint({
+    ...sharedEndpointDeps,
+    authenticateProviderRequest: okAuth,
+    loadOrCreateProviderUserContext: async () => createTestContext(),
+    saveProviderUserContext: async (context) => context,
+    buildIdempotencyKey,
+    hashIdempotencyRequest: async () => "hash_123",
+    readIdempotencyReplay: () => ({ kind: "miss" }),
+    storeIdempotencyReplay: ({ context }) => context,
+    syncProviderTools: async (input) => {
+      seenIntegrationId = input.integration_id;
+      return {
+        synced: true,
+      };
+    },
+    isProviderRateLimitError: isNeverRateLimitError,
+  });
+
+  const body = createInput();
+  delete body.integration_id;
+
+  const response = await endpoint({
+    request: new Request("https://example.com/api/v1/tools/sync", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer test-token",
+        "X-Request-Id": "req_123",
+      },
+      body: JSON.stringify(body),
+    }),
+    params: {},
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(seenIntegrationId, "provider_a");
+});
+
 test("tools sync endpoint replays idempotent responses", async () => {
   const storageKey = buildIdempotencyKey({
     method: "POST",
@@ -177,7 +218,7 @@ test("tools sync endpoint rejects provider and user mismatches", async () => {
   assert.deepEqual(await response.json(), {
     error: {
       code: "forbidden",
-      message: "Integration or user mismatch.",
+      message: "User mismatch.",
       details: null,
     },
     request_id: "req_123",

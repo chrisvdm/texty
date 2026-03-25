@@ -10,10 +10,7 @@ import {
   getRequestId,
   jsonError,
   jsonResponse,
-  readJson,
 } from "./provider.http";
-import {
-} from "./provider.idempotency";
 import {
   getProviderMemory,
   getProviderThreadMemory,
@@ -21,6 +18,8 @@ import {
 } from "./provider.service";
 
 export const providerRoutes = [
+  route("/api/v1/tools/sync", handleToolsSyncEndpoint),
+  route("/api/v1/users/:userId/tools/sync", handleToolsSyncEndpoint),
   route(
     "/api/v1/integrations/:integrationId/users/:userId/tools/sync",
     handleToolsSyncEndpoint,
@@ -29,6 +28,51 @@ export const providerRoutes = [
   route("/api/v1/conversation/input", handleConversationInputEndpoint),
   route("/api/v1/webhooks/executor", handleExecutorResultEndpoint),
   route("/api/v1/threads", handleThreadCreateEndpoint),
+  route("/api/v1/users/:userId/threads", async ({ request, params }) => {
+    const requestId = getRequestId(request);
+
+    if (request.method !== "GET") {
+      return jsonError({
+        requestId,
+        status: 405,
+        code: "method_not_allowed",
+        message: "Method not allowed.",
+      });
+    }
+
+    const auth = await authenticateProviderRequest({
+      request,
+      requestId,
+    });
+
+    if (!auth.ok) {
+      return jsonError({
+        requestId,
+        status: auth.status,
+        code: auth.error.code,
+        message: auth.error.message,
+      });
+    }
+
+    try {
+      const result = await listProviderThreads({
+        providerId: auth.providerId,
+        userId: params.userId,
+      });
+      return jsonResponse({
+        requestId,
+        body: result as unknown as Record<string, unknown>,
+      });
+    } catch (error) {
+      return jsonError({
+        requestId,
+        status: 400,
+        code: "invalid_request",
+        message:
+          error instanceof Error ? error.message : "Unable to list threads.",
+      });
+    }
+  }),
   route(
     "/api/v1/integrations/:integrationId/users/:userId/threads",
     async ({ request, params }) => {
@@ -43,7 +87,7 @@ export const providerRoutes = [
         });
       }
 
-      const auth = authenticateProviderRequest({
+      const auth = await authenticateProviderRequest({
         request,
         providerId: params.integrationId,
         requestId,
@@ -79,6 +123,51 @@ export const providerRoutes = [
     },
   ),
   route("/api/v1/threads/:threadId", handleThreadMutationEndpoint),
+  route("/api/v1/users/:userId/memory", async ({ request, params }) => {
+    const requestId = getRequestId(request);
+
+    if (request.method !== "GET") {
+      return jsonError({
+        requestId,
+        status: 405,
+        code: "method_not_allowed",
+        message: "Method not allowed.",
+      });
+    }
+
+    const auth = await authenticateProviderRequest({
+      request,
+      requestId,
+    });
+
+    if (!auth.ok) {
+      return jsonError({
+        requestId,
+        status: auth.status,
+        code: auth.error.code,
+        message: auth.error.message,
+      });
+    }
+
+    try {
+      const result = await getProviderMemory({
+        providerId: auth.providerId,
+        userId: params.userId,
+      });
+      return jsonResponse({
+        requestId,
+        body: result as unknown as Record<string, unknown>,
+      });
+    } catch (error) {
+      return jsonError({
+        requestId,
+        status: 400,
+        code: "invalid_request",
+        message:
+          error instanceof Error ? error.message : "Unable to load memory.",
+      });
+    }
+  }),
   route(
     "/api/v1/integrations/:integrationId/users/:userId/memory",
     async ({ request, params }) => {
@@ -93,7 +182,7 @@ export const providerRoutes = [
         });
       }
 
-      const auth = authenticateProviderRequest({
+      const auth = await authenticateProviderRequest({
         request,
         providerId: params.integrationId,
         requestId,
@@ -142,16 +231,15 @@ export const providerRoutes = [
 
     try {
       const url = new URL(request.url);
-      const providerId = url.searchParams.get("integration_id")?.trim();
       const userId = url.searchParams.get("user_id")?.trim();
 
-      if (!providerId || !userId) {
-        throw new Error("integration_id and user_id are required.");
+      if (!userId) {
+        throw new Error("user_id is required.");
       }
 
-      const auth = authenticateProviderRequest({
+      const auth = await authenticateProviderRequest({
         request,
-        providerId,
+        providerId: url.searchParams.get("integration_id")?.trim(),
         requestId,
       });
 
@@ -165,7 +253,7 @@ export const providerRoutes = [
       }
 
       const result = await getProviderThreadMemory({
-        providerId,
+        providerId: auth.providerId,
         userId,
         threadId: params.threadId,
       });

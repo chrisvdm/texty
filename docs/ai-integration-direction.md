@@ -53,11 +53,12 @@ If the API surface is too large, too flexible, or too inconsistent:
 
 A new integration should have one clear first success path:
 
-1. configure a connection
-2. define tools in `familiar.json`
-3. sync that manifest into familiar
-4. send conversation input
-5. let familiar trigger the correct target with schema-valid arguments
+1. install the CLI
+2. create or sign in to a familiar account
+3. get an API token for the current familiar setup
+4. publish tool definitions into the hosted registry behind that token
+5. send conversation input
+6. let familiar trigger the correct target with schema-valid arguments
 
 Everything else should be optional or advanced.
 
@@ -82,13 +83,22 @@ Use the same naming style everywhere.
 
 For example:
 
-- `integration_id`
 - `user_id`
 - `thread_id`
 - `tool_name`
+- `channel`
+
+Do not force extra setup identifiers into the MVP happy path unless they are actually needed.
+
+For now, the bearer token can identify the familiar setup.
 
 Do not mix:
 
+- `user_id`
+- `thread_id`
+- `tool_name`
+- token-scoped setup in one place
+- required `integration_id` in another
 - `thread_id` in one place
 - `threadId` in another
 - plain `id` in a third
@@ -136,11 +146,11 @@ AI integrations work better when the system has:
 A new integration should not need:
 
 - a large SDK
-- complicated registration flows
+- complicated registration flows outside the CLI
 - multiple auth models
 - many setup files
 
-Bearer token auth plus a small JSON contract is a good first step.
+Bearer token auth plus a small hosted setup flow is a good first step.
 
 ### 8. Copy-pasteable examples
 
@@ -162,15 +172,21 @@ These are the simplification goals that should guide future API changes.
 
 That is the main thing a connected system should send repeatedly.
 
-### Keep tool sync simple
+### Keep tool registration simple
 
-Tool sync should stay easy to understand:
+Tool registration should stay easy to understand:
 
-- here is the `familiar.json` manifest for this user
-- here are the tools this user can use
+- here is the token-scoped setup I want familiar to manage
+- here are the tools that setup exposes
 - here is the schema familiar must satisfy before executing them
 
 It should not become a complicated patch or partial-sync protocol unless there is a strong reason.
+
+The important direction is:
+
+- the hosted registry behind the authenticated token is canonical
+- local files can still help with authoring or import
+- but local files should not be taught as the source of truth
 
 ### Keep schema ownership in familiar
 
@@ -227,6 +243,9 @@ For now:
 
 That is enough.
 
+For MVP, the bearer token can also identify the active familiar setup.
+That removes the need to require a separate `integration_id` in the public happy path right now.
+
 Adding multiple auth choices too early would make AI integrations harder, not easier.
 
 ## Future Simplification Questions
@@ -247,13 +266,21 @@ For now, keep `provider` unless a better replacement becomes clearly simpler.
 
 ### 2. Should there be a single manifest format?
 
-It may help to eventually support one compact registration payload that says:
+It may help to support one compact import or authoring format that says:
 
 - who the connection is
 - what tools it exposes
 - where each tool should be triggered
 
-That is now the preferred direction for examples through `familiar.json`.
+But that format should remain a convenience layer over the hosted registry, not the canonical runtime source of truth.
+
+### 3. Should explicit setup ids come back later?
+
+Maybe.
+
+If one account later needs several familiar setups with different tool registries, executor targets, or environments, explicit setup ids or integration ids may become necessary.
+
+But the MVP should not force that complexity into every request before the product needs it.
 
 ### 3. Should a one-tool integration be even simpler?
 

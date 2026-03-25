@@ -1,7 +1,9 @@
 import { env } from "cloudflare:workers";
 
+import { authenticateAccountToken } from "../account/account.service";
 import {
   authenticateProviderRequestWithConfigs,
+  getBearerToken,
   normalizeProviderConfigMap,
 } from "./provider.auth-core";
 import { logProviderAudit } from "./provider.audit";
@@ -81,17 +83,59 @@ export const authenticateProviderRequest = ({
   requestId,
 }: {
   request: Request;
-  providerId: string;
+  providerId?: string;
   requestId?: string;
 }) => {
-  return authenticateProviderRequestWithConfigs({
+  const providerConfigs = withBuiltInProviders({
+    providerConfigs: getProviderConfigs(),
+    request,
+  });
+  const configAuth = authenticateProviderRequestWithConfigs({
     request,
     providerId,
     requestId,
-    providerConfigs: withBuiltInProviders({
-      providerConfigs: getProviderConfigs(),
-      request,
-    }),
+    providerConfigs,
     logAudit: logProviderAudit,
   });
+
+  if (configAuth.ok || configAuth.status === 401) {
+    return configAuth;
+  }
+
+  return (async () => {
+    const token = getBearerToken(request);
+
+    if (!token) {
+      return configAuth;
+    }
+
+    const accountAuth = await authenticateAccountToken(token);
+
+    if (!accountAuth) {
+      return configAuth;
+    }
+
+    const resolvedProviderId = providerId?.trim()
+      ? providerId
+      : accountAuth.account.defaultSetupId;
+
+    if (resolvedProviderId !== accountAuth.account.defaultSetupId) {
+      return {
+        ok: false as const,
+        status: 403,
+        error: {
+          code: "forbidden",
+          message: "Invalid API token.",
+        },
+      };
+    }
+
+    return {
+      ok: true as const,
+      providerId: resolvedProviderId,
+      providerConfig: {
+        token,
+      },
+    };
+  })();
 };

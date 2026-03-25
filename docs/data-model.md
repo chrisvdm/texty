@@ -29,11 +29,17 @@ familiar should keep a clear distinction between:
 
 An account owns billing and connected apps.
 
-For MVP:
+Long term:
 
 - one account can own many integrations
-- each integration gets one shared runtime token
-- that token is shared by the team working on that app
+- each integration gets its own setup boundary
+- `integration_id` differentiates those setups
+
+Current MVP:
+
+- one account gets one default setup
+- one default API token identifies that account and current setup
+- explicit integration management is deferred
 
 ### Integration
 
@@ -81,6 +87,12 @@ Key fields:
 Important rule:
 
 `user_id` is scoped to an integration unless a higher-level shared identity is added later.
+
+Current MVP note:
+
+- the public happy path can operate without explicit `integration_id`
+- the authenticated token resolves the current default setup instead
+- later, explicit `integration_id` becomes important again when one account can manage multiple setups
 
 ### Integration User Context
 

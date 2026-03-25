@@ -24,19 +24,23 @@ This means familiar is being designed as a general-purpose conversational front 
 
 familiar should run as a hosted service.
 
+The local CLI should exist mainly to let developers and AI agents create, link, and update hosted integrations.
+It should not imply that familiar is primarily a local runtime.
+
 The simple MVP identity model is:
 
 - `account`
   - owns billing and connected apps
-- `integration`
-  - one configured familiar connection for one app or deployment
 - `executor`
-  - the code or service the integration triggers when familiar decides real work should happen
+  - the code or service the current familiar setup triggers when familiar decides real work should happen
 - `end_user`
   - the person talking through familiar
 
-For MVP, the runtime token is scoped per integration/app.
+For MVP, the runtime token is the main public setup boundary.
 It is not per teammate and not per end user.
+The token identifies the current familiar setup, including its tool registry and executor configuration.
+
+If the product later needs several setups under one account, explicit setup ids or integration ids can be added then.
 
 ## Target Product
 
@@ -125,19 +129,25 @@ familiar is intended to become executor-agnostic.
   - conversational clarification
   - tool selection/orchestration
 - External executors should own:
-  - tool definitions
   - business workflows
   - side effects
   - execution logs
   - domain-specific rules
 
+familiar should own the canonical tool registry for the authenticated setup that describes:
+
+- what tools exist
+- what schemas they accept
+- where execution should be sent
+
 The expected integration model is:
 
-1. An executor syncs a user-specific allowed toolset into familiar.
-2. familiar reasons over those allowed tools during a conversation.
-3. familiar invokes the executor when a tool should run.
-4. The executor executes deterministically and returns a structured result.
-5. familiar turns that result into the user-facing reply and stores the conversation.
+1. A developer or AI agent gets an API token when they want familiar to own the conversation layer for that system.
+2. Tool definitions are published into the hosted registry behind that token.
+3. familiar reasons over the registered tools during a conversation.
+4. familiar invokes the executor when a tool should run.
+5. The executor executes deterministically and returns a structured result.
+6. familiar turns that result into the user-facing reply and stores the conversation.
 
 Examples of executors:
 

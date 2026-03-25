@@ -24,6 +24,7 @@ export const Home = () => (
     <section className="landing-shell">
       <div className="landing-topbar">
         <a className="landing-docs-link" href="/docs/">Docs</a>
+        <a className="landing-docs-link" href="/setup">Setup</a>
       </div>
       <header className="landing-hero">
         <p className="landing-eyebrow">familiar</p>

@@ -70,7 +70,7 @@ export type ProviderChannelInput = {
 };
 
 export type ProviderConversationInput = {
-  integration_id: string;
+  integration_id?: string;
   user_id: string;
   thread_id?: string;
   input: {
@@ -83,10 +83,18 @@ export type ProviderConversationInput = {
   context?: {
     external_memories?: string[];
   };
+  tools?: Array<{
+    tool_name: string;
+    description: string;
+    input_schema: Record<string, unknown>;
+    executor_payload?: unknown;
+    policy?: Record<string, unknown>;
+    status?: "active" | "disabled";
+  }>;
 };
 
 export type ProviderExecutorResultInput = {
-  integration_id: string;
+  integration_id?: string;
   user_id: string;
   thread_id: string;
   channel?: ProviderChannelInput;
@@ -100,7 +108,7 @@ export type ProviderExecutorResultInput = {
 };
 
 export type ProviderToolSyncInput = {
-  integration_id: string;
+  integration_id?: string;
   user_id: string;
   tools: Array<{
     tool_name: string;

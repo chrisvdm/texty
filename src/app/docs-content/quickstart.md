@@ -6,11 +6,11 @@ This is the smallest useful path for getting _familiar_ working with your own ex
 
 You need three things:
 
-- an `integration_id`
-- a bearer token for that integration
+- a bearer token for the current _familiar_ setup
+- a `user_id` from your own app
 - a base URL where _familiar_ can call your executor
 
-For this guide, think of an integration as the full configured setup for one app or deployment:
+For this guide, think of the token as identifying one current _familiar_ setup for one app or deployment:
 
 - the user-facing channel
 - the _familiar_ conversation layer
@@ -22,16 +22,18 @@ In local development, that configuration can look like:
 TEXTY_EXECUTOR_CONFIG='{"integration_a":{"token":"dev-token","baseUrl":"http://localhost:8787"}}'
 ```
 
+> [!NOTE]
+> The current local development config still uses an internal setup key such as `integration_a` inside `TEXTY_EXECUTOR_CONFIG`. That is an implementation detail. The public API happy path can now derive the active setup from the bearer token.
+
 ## Step 1: Sync tools with _familiar_
 
 Sync the tools a user is allowed to use.
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/integrations/integration_a/users/user_123/tools/sync \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/users/user_123/tools/sync \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
-    "integration_id": "integration_a",
     "user_id": "user_123",
     "tools": [
       {
@@ -55,11 +57,10 @@ curl -X POST http://localhost:5173/api/v1/integrations/integration_a/users/user_
 Send normalized text into _familiar_.
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/input \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/input \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
-    "integration_id": "integration_a",
     "user_id": "user_123",
     "input": {
       "kind": "text",
@@ -97,7 +98,7 @@ The executor receives structured tool input rather than raw user text.
     "label": "deployment check"
   },
   "context": {
-    "executor_result_webhook_url": "http://localhost:5173/api/v1/webhooks/executor"
+    "executor_result_webhook_url": "https://texty.chrsvdmrw.workers.dev/api/v1/webhooks/executor"
   }
 }
 ```
@@ -138,12 +139,11 @@ Return either:
 If the executor returned `accepted`, send the final result later:
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/webhooks/executor \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/webhooks/executor \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: exec_123" \
   -d '{
-    "integration_id": "integration_a",
     "user_id": "user_123",
     "thread_id": "thread_abc",
     "result": {

@@ -6,6 +6,7 @@ const docModules = import.meta.glob("../docs-content/*.md", {
 
 const DOC_ORDER = [
   "intro",
+  "install-and-run",
   "quickstart",
   "api-reference",
   "concepts",

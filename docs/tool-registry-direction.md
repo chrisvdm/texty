@@ -13,7 +13,7 @@ The goal is to reduce confusion around:
 
 ## One-Sentence Direction
 
-_familiar_ should own the source of truth for tools through a per-integration tool registry.
+_familiar_ should own the source of truth for tools through a hosted registry attached to the authenticated setup.
 
 ## Why This Direction Is Better
 
@@ -36,7 +36,11 @@ The cleaner answer is:
 
 ## Core Decision
 
-Each integration should have its own tool registry inside _familiar_.
+For MVP, the authenticated API token should identify the current setup and its hosted tool registry.
+
+That means the public happy path does not need a separate `integration_id` yet.
+
+If the product later needs several setups under one account, explicit setup ids or integration ids can be introduced then.
 
 That registry is the single source of truth for:
 
@@ -48,20 +52,20 @@ That registry is the single source of truth for:
 - execution metadata
 - confirmation or policy settings
 
-## Integration-Level Registry
+## Setup-Level Registry
 
-The registry should belong to the integration, not the end user.
+The registry should belong to the authenticated setup, not the end user.
 
 Reason:
 
-- an integration is one end-to-end _familiar_ setup
+- the token already identifies one current end-to-end _familiar_ setup
 - tools are usually part of that setup
 - users may have different access rules, but the base tool definitions should not have to be duplicated per user
 
 That means the model should eventually separate:
 
 - tool registry
-  - integration-level canonical tool definitions
+  - setup-level canonical tool definitions
 - tool access
   - which users can use which tools
 
@@ -180,14 +184,16 @@ The current `tools/sync` endpoint is close to a bulk upsert operation, but the n
 
 The better long-term shape is probably one of:
 
-- `PUT /api/v1/integrations/:integration_id/tools`
-- `GET /api/v1/integrations/:integration_id/tools`
-- `PUT /api/v1/integrations/:integration_id/tools/:tool_name`
-- `DELETE /api/v1/integrations/:integration_id/tools/:tool_name`
+- `PUT /api/v1/tools`
+- `GET /api/v1/tools`
+- `PUT /api/v1/tools/:tool_name`
+- `DELETE /api/v1/tools/:tool_name`
 
 or a similarly small registry-oriented surface.
 
-The key point is that the API should describe registry ownership, not “sync from file”.
+For MVP, those routes can resolve the active setup from the bearer token.
+
+The key point is that the API should describe hosted registry ownership, not “sync from file”.
 
 ## CLI Implication
 
@@ -202,6 +208,113 @@ Good CLI behavior would be:
 - support local executor development flows
 
 That keeps the CLI useful without making local files the canonical state.
+
+## CLI-First Onboarding Direction
+
+The CLI should be the main developer control surface for hosted _familiar_.
+
+The important mental model is:
+
+- _familiar_ is a hosted conversation layer
+- the local CLI exists to make changes to hosted integrations
+- local files exist to help author or publish those changes
+
+That means a developer does not install _familiar_ because they want a local runtime.
+They install the CLI when they want _familiar_ to become part of their system.
+
+The first step should be explicit:
+
+```bash
+curl -fsSL https://familiar.sh/install | sh
+familiar init
+```
+
+The install step should only install the CLI.
+It should not try to own account creation or project setup itself.
+
+`familiar init` should be the first-run onboarding command.
+
+Its job should be to:
+
+- register or sign in the developer
+- issue or retrieve an API token
+- store auth locally
+- write minimal local project config
+- point the developer toward the next useful action
+
+For MVP, `familiar init` should optimize for first success rather than force an explicit integration-creation concept into the first run.
+The token can represent the current familiar setup by itself.
+
+If multi-setup support is added later, more explicit setup-selection commands can be introduced then.
+
+## Role Of Local Config
+
+Local config should exist, but it should stay small.
+
+Its job is to describe:
+
+- which hosted integration this repo manages
+- where local tool authoring files live
+- local development settings such as a dev bridge port
+
+Its job is not to define the canonical live tool state.
+
+The clean split is:
+
+- global auth state
+  - who the developer is
+  - what API token the CLI should use
+- project config
+  - which hosted setup this repo is linked to, if local linking is needed
+  - where local authoring inputs live
+- hosted registry
+  - the actual canonical tool definitions for the authenticated setup
+
+This keeps the product understandable:
+
+- auth answers "who am I and which setup is active"
+- project config answers "what local authoring state belongs to this setup"
+- the hosted registry answers "what tools are live"
+
+## Command Model Direction
+
+The CLI command model should reinforce hosted ownership.
+
+Recommended shape:
+
+- `familiar init`
+  - connect this machine and repo to hosted _familiar_
+- `familiar login`
+  - authenticate or refresh credentials without changing project state
+- `familiar tools push`
+  - publish local authoring definitions into the hosted registry
+- `familiar tools list`
+  - list tools from the hosted registry by default
+- `familiar dev`
+  - expose local executors to hosted _familiar_ during development
+
+The important rule is:
+
+- read and inspect commands should default to hosted truth
+- local files should be treated as authoring input
+
+So `familiar tools list` should read from the hosted registry unless the user explicitly asks for a local view.
+
+## Migration From `tools/sync`
+
+The current `tools/sync` endpoint is still a valid MVP bulk upsert mechanism.
+
+But product language should move away from "sync" as the primary mental model.
+
+The better framing is:
+
+- local definitions are authored or generated
+- `familiar tools push` publishes them
+- the hosted integration registry becomes the source of truth
+
+This avoids implying that local files and hosted state are peers.
+They are not peers.
+Hosted state should win.
 
 ## Recommended Mental Model
 

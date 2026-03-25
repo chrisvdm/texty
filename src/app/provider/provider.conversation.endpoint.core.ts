@@ -1,8 +1,17 @@
 import type { ProviderConversationInput, ProviderUserContext } from "./provider.types.ts";
+import {
+  requireNonEmptyString,
+  resolveProviderIdFromInput,
+} from "./provider.endpoint-input.ts";
+
+type NormalizedProviderConversationInput = ProviderConversationInput & {
+  integration_id: string;
+};
 
 type AuthResult =
   | {
       ok: true;
+      providerId: string;
       providerConfig: {
         token: string;
         baseUrl?: string;
@@ -49,9 +58,9 @@ export type ConversationEndpointDeps = {
   }) => Response;
   authenticateProviderRequest: (input: {
     request: Request;
-    providerId: string;
+    providerId?: string;
     requestId: string;
-  }) => AuthResult;
+  }) => AuthResult | Promise<AuthResult>;
   loadOrCreateProviderUserContext: (input: {
     providerId: string;
     userId: string;
@@ -86,7 +95,7 @@ export type ConversationEndpointDeps = {
     now?: string;
   }) => ProviderUserContext;
   handleProviderConversationInput: (input: {
-    input: ProviderConversationInput;
+    input: NormalizedProviderConversationInput;
     providerConfig: {
       token: string;
       baseUrl?: string;
@@ -117,7 +126,7 @@ export const createHandleConversationInputEndpoint = (
       const requestPath = new URL(request.url).pathname;
       const input = await deps.readJson<ProviderConversationInput>(request);
       const idempotencyKey = deps.getIdempotencyHeader(request);
-      const auth = deps.authenticateProviderRequest({
+      const auth = await deps.authenticateProviderRequest({
         request,
         providerId: input.integration_id,
         requestId,
@@ -132,10 +141,20 @@ export const createHandleConversationInputEndpoint = (
         });
       }
 
+      const providerId = resolveProviderIdFromInput({
+        explicitProviderId: input.integration_id,
+        authenticatedProviderId: auth.providerId,
+      });
+      const normalizedInput = {
+        ...input,
+        integration_id: providerId,
+        user_id: requireNonEmptyString(input.user_id, "user_id"),
+      } satisfies NormalizedProviderConversationInput;
+
       if (idempotencyKey) {
         const context = await deps.loadOrCreateProviderUserContext({
-          providerId: input.integration_id,
-          userId: input.user_id,
+          providerId,
+          userId: normalizedInput.user_id,
         });
         const storageKey = deps.buildIdempotencyKey({
           method: request.method,
@@ -145,7 +164,7 @@ export const createHandleConversationInputEndpoint = (
         const requestHash = await deps.hashIdempotencyRequest({
           method: request.method,
           path: storageKey,
-          body: input,
+          body: normalizedInput,
         });
         const replay = deps.readIdempotencyReplay({
           context,
@@ -167,14 +186,14 @@ export const createHandleConversationInputEndpoint = (
         }
 
         const result = await deps.handleProviderConversationInput({
-          input,
+          input: normalizedInput,
           providerConfig: auth.providerConfig,
           requestId,
         });
         const nextContext = deps.storeIdempotencyReplay({
           context: await deps.loadOrCreateProviderUserContext({
-            providerId: input.integration_id,
-            userId: input.user_id,
+            providerId,
+            userId: normalizedInput.user_id,
           }),
           storageKey,
           requestHash,
@@ -190,7 +209,7 @@ export const createHandleConversationInputEndpoint = (
       }
 
       const result = await deps.handleProviderConversationInput({
-        input,
+        input: normalizedInput,
         providerConfig: auth.providerConfig,
         requestId,
       });

@@ -22,7 +22,7 @@ Use this route when:
 
 The callback tells _familiar_:
 
-- which integration the result belongs to
+- which token-scoped setup the result belongs to
 - which user and thread should receive it
 - what final user-facing message should be appended
 
@@ -34,7 +34,6 @@ The callback payload can stay small:
 
 ```json
 {
-  "integration_id": "integration_a",
   "user_id": "user_123",
   "thread_id": "thread_abc",
   "result": {
@@ -48,12 +47,11 @@ The callback payload can stay small:
 ### Example callback
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/webhooks/executor \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/webhooks/executor \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: exec_123" \
   -d '{
-    "integration_id": "integration_a",
     "user_id": "user_123",
     "thread_id": "thread_abc",
     "result": {

@@ -2,73 +2,79 @@
 
 ## Purpose
 
-This document defines the first implementation pass for familiar as a provider-aware conversation service.
+This document defines the current shippable MVP surface.
 
-It is intentionally narrower than the full long-term architecture.
+It is intentionally narrower than the long-term product architecture.
 
-The goal is to ship the first slice that proves:
+The target architecture is still:
 
-- provider-authenticated access
-- provider/user-scoped threads and memory
-- channel-linked conversation continuity
-- sync tool execution
-- the current web UI using the same service path
+- one account can have many integrations
+- one integration can have many end users
+- `integration_id` differentiates those setups
 
-## MVP Goals
+But the current MVP public model is simpler so humans and AI can get to first success faster.
+
+## Current MVP Goals
 
 The MVP should prove that familiar can:
 
-1. authenticate a provider with an API token
-2. accept a provider/user/channel conversation turn
-3. resolve the right thread
-4. load the right memory
-5. answer directly, clarify, or call a tool
-6. persist the result
-7. expose the same behavior to the existing web UI
+1. create an account quickly
+2. issue one usable API token immediately
+3. let that token identify the current default setup
+4. accept a user and channel conversation turn
+5. resolve the right thread
+6. load the right memory
+7. answer directly, clarify, or call a tool
+8. persist the result
+9. expose the same behavior to the existing web UI
 
-## Scope
+## Current MVP Scope
 
 ### In scope
 
-- provider API-token authentication
-- provider/user-scoped conversation identity
+- account creation
+- one default API token per account
+- token-authenticated conversation access
+- token-backed default setup resolution
+- user/channel-scoped conversation identity
 - channel-linked thread resolution
 - thread create/list/rename/delete
 - conversation input endpoint
 - tool sync endpoint
+- optional tools on input for bootstrap and development
 - sync tool execution callout
+- async executor callback endpoint
 - private-thread enforcement
-- provider/user-scoped shared memory
+- user-scoped shared memory within the current setup
 - web UI as a channel client of the same backend path
 
-### Out of scope for MVP
+### Out of scope
 
-- async job execution
-- full multi-channel production integrations
-- public user auth flows
-- cross-provider shared memory
+- explicit multi-integration account management
+- setup selection UX
+- account claiming and human login
+- billing
+- advanced admin tooling
 - streaming provider API responses
-- advanced retention/export tooling
-- full admin tooling
+- cross-account shared memory
 
-## MVP Identity Model
+## Current MVP Identity Model
 
-Each conversation turn must carry:
+Public happy path:
 
-- `integration_id`
-- `user_id`
-- `channel.type`
-- `channel.id`
-- optional `thread_id`
+- bearer token identifies the account and its current default setup
+- request carries `user_id`
+- request carries `channel.type`
+- request carries `channel.id`
+- request may carry `thread_id`
+- `integration_id` is optional in the happy path
 
-Rules:
+Important note:
 
-- integration authenticates with an API token
-- user is the human within that integration
-- channel is a linked identity for that user
-- thread is the conversation record
+- this is an MVP simplification, not the long-term product model
+- later, when one account can manage multiple integrations, explicit `integration_id` becomes important again
 
-## MVP Thread Resolution Rule
+## Current MVP Thread Rule
 
 If `thread_id` is supplied:
 
@@ -80,40 +86,35 @@ If `thread_id` is not supplied:
 - if the new input clearly fits that thread, continue it
 - otherwise infer a better thread or start a new one
 
-For the first implementation pass, "fits that thread" may use a simpler heuristic before a stronger inference model is added.
-
-## MVP Memory Rule
+## Current MVP Memory Rule
 
 ### Capture
 
-- all normal conversations are captured by default
+- normal conversations are captured by default
 - private threads are the exception
 
 ### Retrieval
 
-Retrieval modes still apply:
-
-- `none`
-- `thread`
-- `provider_user`
-- `custom_scope`
-- `external`
-
-For MVP, the required supported retrieval modes are:
+Supported retrieval modes in practice:
 
 - `thread`
 - `provider_user`
 - `external`
 
-The others can remain documented but unimplemented if needed.
+The current simplification under discussion is that early hosted flows may use `user_id = account_id` until end-user separation matters more.
 
-## MVP Execution Model
+That is an MVP convenience, not the long-term identity model.
 
-The first pass should support sync execution only.
+## Current MVP Execution Rule
 
-That means familiar calls a provider tool and waits for an immediate structured result.
+The MVP supports:
 
-Planned future execution states should still be documented now:
+- direct reply
+- clarification
+- sync tool execution
+- async executor callbacks through `POST /api/v1/webhooks/executor`
+
+Useful execution states remain:
 
 - `completed`
 - `needs_clarification`
@@ -121,80 +122,71 @@ Planned future execution states should still be documented now:
 - `in_progress`
 - `failed`
 
-For MVP, the runtime only needs to implement:
+## Current MVP API Surface
 
-- `completed`
-- `needs_clarification`
-- `failed`
+Account bootstrap:
 
-## MVP API Surface
+- `POST /api/v1/accounts`
+- `GET /api/v1/account`
 
-Required endpoints:
+Conversation/runtime:
 
-- `POST /api/v1/integrations/:integration_id/users/:user_id/tools/sync`
+- `POST /api/v1/input`
 - `POST /api/v1/conversation/input`
 - `POST /api/v1/webhooks/executor`
 - `POST /api/v1/threads`
-- `GET /api/v1/integrations/:integration_id/users/:user_id/threads`
+- `GET /api/v1/users/:user_id/threads`
 - `PATCH /api/v1/threads/:thread_id`
 - `DELETE /api/v1/threads/:thread_id`
-
-Optional but useful for debug:
-
-- `GET /api/v1/integrations/:integration_id/users/:user_id/memory`
+- `GET /api/v1/users/:user_id/memory`
 - `GET /api/v1/threads/:thread_id/memory`
 
-## MVP Security Requirements
+Compatibility routes still exist for integration-scoped paths, but they are not the primary MVP teaching surface.
+
+## Current MVP Tool Setup Rule
+
+There are two valid MVP ways to provide tools:
+
+1. `POST /api/v1/users/:user_id/tools/sync`
+2. include optional `tools` on `POST /api/v1/input`
+
+The second path exists to reduce admin/setup friction during development.
+
+Long term, the hosted registry remains the intended source of truth.
+
+## Current MVP Security Requirements
 
 Minimum security for MVP:
 
-- integration API-token authentication
-- provider/user ownership checks
+- bearer token authentication
+- token-to-account resolution
+- token-to-default-setup resolution
 - thread ownership checks
 - private-thread retrieval and capture enforcement
-- request logging for write operations
-- basic rate limiting on input and tool sync routes
+- request tracing for write operations
+- basic rate limiting on input and tool setup routes
 
-## MVP Storage Shift
+## Current MVP Build Order
 
-The current browser-session-scoped global memory needs to move toward provider/user scope.
-
-For the first pass, the minimum required storage split is:
-
-- thread transcript and thread memory keyed by thread ownership
-- shared memory keyed by provider/user
-- channel recent-thread continuity keyed by provider/user/channel
-
-## MVP Web UI Rule
-
-The web UI is not a provider.
-
-It is one channel client.
-
-For MVP, the web UI should use the same conversation entry path and thread rules as any other channel-facing surface, even if it still relies on local session behavior internally during the transition.
-
-## MVP Build Order
-
-1. Add provider API-token auth.
-2. Introduce provider/user/channel request context.
-3. Add provider-aware thread ownership and channel continuity records.
-4. Move shared memory access behind provider/user scope.
-5. Implement private-thread enforcement in the service layer.
-6. Add tool sync endpoint.
-7. Add conversation input endpoint.
-8. Add sync provider tool execution callout.
-9. Adapt the web UI to the same conversation path.
-10. Add debug visibility for provider/user/channel resolution.
+1. add account creation and token issuance
+2. make token resolve the current default setup
+3. expose account lookup by token
+4. support conversation input on the token-scoped happy path
+5. support tool setup through sync and optional inline tools
+6. support sync and async executor boundaries
+7. keep the web UI on the same conversation core
+8. later reintroduce explicit integration lifecycle when multi-setup support becomes necessary
 
 ## Definition of Done
 
 The MVP is successful when:
 
-- a provider can authenticate
-- a provider can sync tools for a user
-- a provider can send a message for a user and channel
+- a user can create an account
+- a user can receive one API token immediately
+- that token can fetch account info
+- that token can send a message for a `user_id` and `channel`
 - familiar can continue the right thread or create a new one
 - familiar can retrieve the right memory according to policy
-- familiar can call a provider tool synchronously
-- private threads remain isolated from shared memory
+- familiar can use stored tools or optional tools supplied on input
+- familiar can call an executor and receive async results
 - the existing web UI can operate through the same core path

@@ -2,10 +2,19 @@ import type {
   ProviderExecutorResultInput,
   ProviderUserContext,
 } from "./provider.types.ts";
+import {
+  requireNonEmptyString,
+  resolveProviderIdFromInput,
+} from "./provider.endpoint-input.ts";
+
+type NormalizedProviderExecutorResultInput = ProviderExecutorResultInput & {
+  integration_id: string;
+};
 
 type AuthResult =
   | {
       ok: true;
+      providerId: string;
       providerConfig: {
         token: string;
         baseUrl?: string;
@@ -46,9 +55,9 @@ export type ExecutorResultEndpointDeps = {
   }) => Response;
   authenticateProviderRequest: (input: {
     request: Request;
-    providerId: string;
+    providerId?: string;
     requestId: string;
-  }) => AuthResult;
+  }) => AuthResult | Promise<AuthResult>;
   loadOrCreateProviderUserContext: (input: {
     providerId: string;
     userId: string;
@@ -83,7 +92,7 @@ export type ExecutorResultEndpointDeps = {
     now?: string;
   }) => ProviderUserContext;
   handleProviderExecutorResult: (input: {
-    input: ProviderExecutorResultInput;
+    input: NormalizedProviderExecutorResultInput;
     providerConfig: {
       token: string;
       baseUrl?: string;
@@ -109,7 +118,7 @@ export const createHandleExecutorResultEndpoint = (
 
     try {
       const input = await deps.readJson<ProviderExecutorResultInput>(request);
-      const auth = deps.authenticateProviderRequest({
+      const auth = await deps.authenticateProviderRequest({
         request,
         providerId: input.integration_id,
         requestId,
@@ -124,15 +133,26 @@ export const createHandleExecutorResultEndpoint = (
         });
       }
 
+      const providerId = resolveProviderIdFromInput({
+        explicitProviderId: input.integration_id,
+        authenticatedProviderId: auth.providerId,
+      });
+      const normalizedInput = {
+        ...input,
+        integration_id: providerId,
+        user_id: requireNonEmptyString(input.user_id, "user_id"),
+        thread_id: requireNonEmptyString(input.thread_id, "thread_id"),
+      } satisfies NormalizedProviderExecutorResultInput;
+
       const idempotencyKey =
         deps.getIdempotencyHeader(request) ||
-        input.result.execution_id?.trim() ||
+        normalizedInput.result.execution_id?.trim() ||
         null;
 
       if (idempotencyKey) {
         const context = await deps.loadOrCreateProviderUserContext({
-          providerId: input.integration_id,
-          userId: input.user_id,
+          providerId,
+          userId: normalizedInput.user_id,
         });
         const storageKey = deps.buildIdempotencyKey({
           method: request.method,
@@ -142,7 +162,7 @@ export const createHandleExecutorResultEndpoint = (
         const requestHash = await deps.hashIdempotencyRequest({
           method: request.method,
           path: storageKey,
-          body: input,
+          body: normalizedInput,
         });
         const replay = deps.readIdempotencyReplay({
           context,
@@ -164,14 +184,14 @@ export const createHandleExecutorResultEndpoint = (
         }
 
         const result = await deps.handleProviderExecutorResult({
-          input,
+          input: normalizedInput,
           providerConfig: auth.providerConfig,
           requestId,
         });
         const nextContext = deps.storeIdempotencyReplay({
           context: await deps.loadOrCreateProviderUserContext({
-            providerId: input.integration_id,
-            userId: input.user_id,
+            providerId,
+            userId: normalizedInput.user_id,
           }),
           storageKey,
           requestHash,
@@ -187,11 +207,11 @@ export const createHandleExecutorResultEndpoint = (
       }
 
       await deps.loadOrCreateProviderUserContext({
-        providerId: input.integration_id,
-        userId: input.user_id,
+        providerId,
+        userId: normalizedInput.user_id,
       });
       const result = await deps.handleProviderExecutorResult({
-        input,
+        input: normalizedInput,
         providerConfig: auth.providerConfig,
         requestId,
       });

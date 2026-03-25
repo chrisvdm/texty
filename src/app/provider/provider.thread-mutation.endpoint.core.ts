@@ -1,8 +1,13 @@
 import type { ProviderUserContext } from "./provider.types.ts";
+import {
+  requireNonEmptyString,
+  resolveProviderIdFromInput,
+} from "./provider.endpoint-input.ts";
 
 type AuthResult =
   | {
       ok: true;
+      providerId: string;
     }
   | {
       ok: false;
@@ -14,7 +19,7 @@ type AuthResult =
     };
 
 type ThreadMutationInput = {
-  integration_id: string;
+  integration_id?: string;
   user_id: string;
   title?: string;
 };
@@ -47,9 +52,9 @@ export type ThreadMutationEndpointDeps = {
   }) => Response;
   authenticateProviderRequest: (input: {
     request: Request;
-    providerId: string;
+    providerId?: string;
     requestId: string;
-  }) => AuthResult;
+  }) => AuthResult | Promise<AuthResult>;
   loadOrCreateProviderUserContext: (input: {
     providerId: string;
     userId: string;
@@ -124,7 +129,7 @@ export const createHandleThreadMutationEndpoint = (
     try {
       const input = await deps.readJson<ThreadMutationInput>(request);
       const idempotencyKey = deps.getIdempotencyHeader(request);
-      const auth = deps.authenticateProviderRequest({
+      const auth = await deps.authenticateProviderRequest({
         request,
         providerId: input.integration_id,
         requestId,
@@ -139,6 +144,12 @@ export const createHandleThreadMutationEndpoint = (
         });
       }
 
+      const providerId = resolveProviderIdFromInput({
+        explicitProviderId: input.integration_id,
+        authenticatedProviderId: auth.providerId,
+      });
+      const userId = requireNonEmptyString(input.user_id, "user_id");
+
       const storageKey = idempotencyKey
         ? deps.buildIdempotencyKey({
             method: request.method,
@@ -151,14 +162,18 @@ export const createHandleThreadMutationEndpoint = (
           ? await deps.hashIdempotencyRequest({
               method: request.method,
               path: storageKey,
-              body: input,
+              body: {
+                ...input,
+                integration_id: providerId,
+                user_id: userId,
+              },
             })
           : null;
       const context =
         idempotencyKey && storageKey && requestHash
           ? await deps.loadOrCreateProviderUserContext({
-              providerId: input.integration_id,
-              userId: input.user_id,
+              providerId,
+              userId,
             })
           : null;
       const replay =
@@ -185,8 +200,8 @@ export const createHandleThreadMutationEndpoint = (
 
       if (request.method === "PATCH") {
         const result = await deps.renameProviderThread({
-          providerId: input.integration_id,
-          userId: input.user_id,
+          providerId,
+          userId,
           threadId: params.threadId,
           title: input.title ?? "",
           requestId,
@@ -196,8 +211,8 @@ export const createHandleThreadMutationEndpoint = (
           await deps.saveProviderUserContext(
             deps.storeIdempotencyReplay({
               context: await deps.loadOrCreateProviderUserContext({
-                providerId: input.integration_id,
-                userId: input.user_id,
+                providerId,
+                userId,
               }),
               storageKey,
               requestHash,
@@ -214,8 +229,8 @@ export const createHandleThreadMutationEndpoint = (
       }
 
       const result = await deps.deleteProviderThread({
-        providerId: input.integration_id,
-        userId: input.user_id,
+        providerId,
+        userId,
         threadId: params.threadId,
         requestId,
       });
@@ -224,8 +239,8 @@ export const createHandleThreadMutationEndpoint = (
         await deps.saveProviderUserContext(
           deps.storeIdempotencyReplay({
             context: await deps.loadOrCreateProviderUserContext({
-              providerId: input.integration_id,
-              userId: input.user_id,
+              providerId,
+              userId,
             }),
             storageKey,
             requestHash,

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "A bare-bones RedwoodSDK starter",
   "main": "index.js",
+  "bin": {
+    "familiar": "./src/cli/familiar.mjs"
+  },
   "type": "module",
   "keywords": [],
   "author": "",

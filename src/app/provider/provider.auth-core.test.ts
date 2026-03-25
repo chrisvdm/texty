@@ -99,7 +99,7 @@ test("authenticateProviderRequestWithConfigs rejects unknown executors", () => {
     status: 403,
     error: {
       code: "forbidden",
-      message: "Unknown provider.",
+      message: "Invalid provider token.",
     },
   });
 });
@@ -122,9 +122,33 @@ test("authenticateProviderRequestWithConfigs accepts matching bearer tokens", ()
 
   assert.deepEqual(result, {
     ok: true,
+    providerId: "provider_a",
     providerConfig: {
       token: "dev-token",
       baseUrl: "https://example.com/root",
+    },
+  });
+});
+
+test("authenticateProviderRequestWithConfigs resolves provider from a unique token", () => {
+  const result = authenticateProviderRequestWithConfigs({
+    request: new Request("https://example.com", {
+      headers: {
+        Authorization: "Bearer dev-token",
+      },
+    }),
+    providerConfigs: {
+      provider_a: {
+        token: "dev-token",
+      },
+    },
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    providerId: "provider_a",
+    providerConfig: {
+      token: "dev-token",
     },
   });
 });

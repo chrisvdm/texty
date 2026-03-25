@@ -7,7 +7,7 @@ This page is the practical API reference for integrating with _familiar_.
 Every inbound request to _familiar_ should include:
 
 ```text
-Authorization: Bearer <integration-token>
+Authorization: Bearer <api-token>
 Content-Type: application/json
 ```
 
@@ -25,6 +25,68 @@ Errors should follow one simple shape:
     "code": "invalid_request",
     "message": "The request payload is missing user_id.",
     "details": null
+  }
+}
+```
+
+## Create account
+
+Endpoint:
+
+```text
+POST /api/v1/accounts
+```
+
+Create an account and immediately issue the first API token.
+
+```json
+{}
+```
+
+Example response:
+
+```json
+{
+  "account": {
+    "id": "acct_123",
+    "created_at": "2026-03-25T10:00:00.000Z"
+  },
+  "token": {
+    "value": "fam_abc123",
+    "prefix": "fam_abcd",
+    "last_four": "c123",
+    "created_at": "2026-03-25T10:00:00.000Z"
+  }
+}
+```
+
+## Get account
+
+Endpoint:
+
+```text
+GET /api/v1/account
+```
+
+Resolve the account from the bearer token.
+
+Example response:
+
+```json
+{
+  "account": {
+    "id": "acct_123",
+    "created_at": "2026-03-25T10:00:00.000Z"
+  },
+  "setup": {
+    "id": "setup_123"
+  },
+  "token": {
+    "id": "tok_123",
+    "prefix": "fam_abcd",
+    "last_four": "c123",
+    "created_at": "2026-03-25T10:00:00.000Z",
+    "last_used_at": "2026-03-25T10:05:00.000Z"
   }
 }
 ```
@@ -47,7 +109,6 @@ Use this when:
 
 ```json
 {
-  "integration_id": "integration_a",
   "user_id": "user_123",
   "thread_id": "thread_abc",
   "input": {
@@ -58,9 +119,35 @@ Use this when:
     "type": "web",
     "id": "browser_session_abc",
     "name": "Chris browser"
-  }
+  },
+  "tools": [
+    {
+      "tool_name": "calendar.create_event",
+      "description": "Create a calendar event",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "date": { "type": "string" }
+        },
+        "required": ["title", "date"]
+      },
+      "status": "active"
+    }
+  ]
 }
 ```
+
+`tools` is optional.
+
+Use it when:
+
+- you are still developing and do not want a separate tool-push step yet
+- you want to bootstrap the current account-backed setup from the same request
+
+If `tools` is present, _familiar_ stores those tools for that user in the current token-backed setup and then uses them for routing.
+
+If `tools` is omitted, _familiar_ uses the tools already stored for that user.
 
 Example response:
 
@@ -84,9 +171,6 @@ Example response:
   "execution": {
     "state": "accepted",
     "execution_id": "exec_123"
-  },
-  "action": {
-    "type": "clarification"
   }
 }
 ```
@@ -94,12 +178,14 @@ Example response:
 > [!NOTE]
 > `input.text` is always normalized text. Voice or audio should be transcribed before calling this endpoint.
 
+`integration_id` is optional on this endpoint in the current MVP happy path. The bearer token can identify the active setup.
+
 ## Sync tools
 
 Endpoint:
 
 ```text
-POST /api/v1/integrations/:integration_id/users/:user_id/tools/sync
+POST /api/v1/users/:user_id/tools/sync
 ```
 
 Tell _familiar_ which tools a user is allowed to use.
@@ -111,11 +197,10 @@ Use this when:
 - a tool schema changes
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/integrations/integration_a/users/user_123/tools/sync \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/users/user_123/tools/sync \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
-    "integration_id": "integration_a",
     "user_id": "user_123",
     "tools": [
       {
@@ -147,6 +232,8 @@ Example response:
 }
 ```
 
+The response still includes `integration_id` so callers can see which setup the token resolved to.
+
 ## Create a thread
 
 Endpoint:
@@ -164,7 +251,6 @@ Use this when:
 
 ```json
 {
-  "integration_id": "integration_a",
   "user_id": "user_123",
   "title": "Q2 planning"
 }
@@ -175,10 +261,10 @@ Use this when:
 Endpoint:
 
 ```text
-GET /api/v1/integrations/:integration_id/users/:user_id/threads
+GET /api/v1/users/:user_id/threads
 ```
 
-List threads for one user inside one integration.
+List threads for one user inside the setup identified by the token.
 
 Use this when:
 
@@ -265,7 +351,7 @@ Use this when:
 - the final result only becomes available later
 
 ```shell
-curl -X POST http://localhost:5173/api/v1/webhooks/executor \
+curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/webhooks/executor \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: exec_123" \

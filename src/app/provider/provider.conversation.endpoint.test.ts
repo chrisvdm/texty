@@ -125,6 +125,106 @@ test("conversation endpoint accepts the short /api/v1/input alias", async () => 
   });
 });
 
+test("conversation endpoint can derive integration_id from auth", async () => {
+  let seenIntegrationId: string | undefined;
+
+  const endpoint = createHandleConversationInputEndpoint({
+    ...sharedEndpointDeps,
+    authenticateProviderRequest: () => ({
+      ...okAuth(),
+      providerConfig: {
+        token: "test-token",
+      },
+    }),
+    loadOrCreateProviderUserContext: async () => createTestContext(),
+    saveProviderUserContext: async (context) => context,
+    buildIdempotencyKey,
+    hashIdempotencyRequest: async () => "hash_123",
+    readIdempotencyReplay: () => ({ kind: "miss" }),
+    storeIdempotencyReplay: ({ context }) => context,
+    handleProviderConversationInput: async ({ input }) => {
+      seenIntegrationId = input.integration_id;
+      return {
+        state: "completed",
+      };
+    },
+    isProviderRateLimitError: isNeverRateLimitError,
+  });
+
+  const body = createInput();
+  delete body.integration_id;
+
+  const response = await endpoint({
+    request: createConversationRequest({
+      body,
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(seenIntegrationId, "provider_a");
+});
+
+test("conversation endpoint forwards optional tools on input", async () => {
+  let seenTools: ProviderConversationInput["tools"];
+
+  const endpoint = createHandleConversationInputEndpoint({
+    ...sharedEndpointDeps,
+    authenticateProviderRequest: () => ({
+      ...okAuth(),
+      providerConfig: {
+        token: "test-token",
+      },
+    }),
+    loadOrCreateProviderUserContext: async () => createTestContext(),
+    saveProviderUserContext: async (context) => context,
+    buildIdempotencyKey,
+    hashIdempotencyRequest: async () => "hash_123",
+    readIdempotencyReplay: () => ({ kind: "miss" }),
+    storeIdempotencyReplay: ({ context }) => context,
+    handleProviderConversationInput: async ({ input }) => {
+      seenTools = input.tools;
+      return {
+        state: "completed",
+      };
+    },
+    isProviderRateLimitError: isNeverRateLimitError,
+  });
+
+  const response = await endpoint({
+    request: createConversationRequest({
+      body: {
+        ...createInput(),
+        tools: [
+          {
+            tool_name: "calendar.create_event",
+            description: "Create a calendar event",
+            input_schema: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+              },
+            },
+          },
+        ],
+      },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(seenTools, [
+    {
+      tool_name: "calendar.create_event",
+      description: "Create a calendar event",
+      input_schema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+        },
+      },
+    },
+  ]);
+});
+
 test("conversation endpoint replays idempotent responses", async () => {
   const input = createInput();
   const storageKey = buildIdempotencyKey({
