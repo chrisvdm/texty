@@ -46,7 +46,7 @@ The callback payload can stay small:
 ### Example callback
 
 ```shell
-curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/webhooks/executor \
+curl -X POST https://familiar.chrsvdmrw.dev/api/v1/webhooks/executor \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: exec_123" \

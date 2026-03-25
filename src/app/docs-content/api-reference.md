@@ -63,11 +63,12 @@ Example response:
 CLI equivalent:
 
 ```text
-familiar init
+npx @familiar/cli@latest init
 ```
 
-If the CLI is already available in your environment, that command creates the account, issues the first API token, and stores it locally.
-By default it uses `https://texty.chrsvdmrw.workers.dev`.
+That is the planned CLI command once the package is published.
+
+Today, the working account bootstrap path is the API route shown above.
 
 ## Get account
 
@@ -205,7 +206,7 @@ Use this when:
 - a tool schema changes
 
 ```shell
-curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/tools/sync \
+curl -X POST https://familiar.chrsvdmrw.dev/api/v1/tools/sync \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
@@ -380,7 +381,7 @@ Use this when:
 - the final result only becomes available later
 
 ```shell
-curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/webhooks/executor \
+curl -X POST https://familiar.chrsvdmrw.dev/api/v1/webhooks/executor \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: exec_123" \

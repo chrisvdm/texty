@@ -21,11 +21,10 @@ type CreateAccountResponse = {
 };
 
 const curlExample = (token: string) =>
-  `curl -X POST https://your-familiar-host/api/v1/users/user_123/tools/sync \\
+  `curl -X POST https://familiar.chrsvdmrw.dev/api/v1/tools/sync \\
   -H "Authorization: Bearer ${token}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "user_id": "user_123",
     "tools": []
   }'`;
 
@@ -107,6 +106,20 @@ export const SetupClient = () => {
 
           {status ? <p className={styles.status}>{status}</p> : null}
         </section>
+
+        <aside className={styles.panel}>
+          <h2 className={styles.panelTitle}>CLI direction</h2>
+          <p className={styles.panelCopy}>
+            The intended primary setup path for humans and AI agents is:
+          </p>
+          <pre className={styles.code}>
+            <code>npx @familiar/cli@latest init</code>
+          </pre>
+          <p className={styles.panelCopy}>
+            The package is not published yet, so this page is the working hosted
+            path today.
+          </p>
+        </aside>
 
         <aside className={styles.panel}>
           <h2 className={styles.panelTitle}>Why this path</h2>

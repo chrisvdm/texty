@@ -1,16 +1,41 @@
 {
-  "name": "@redwoodjs/starter",
+  "name": "@familiar/cli",
   "version": "1.0.0",
-  "description": "A bare-bones RedwoodSDK starter",
-  "main": "index.js",
+  "description": "A conversation layer for tools, workflows, and useful code",
   "bin": {
     "familiar": "./src/cli/familiar.mjs"
   },
   "type": "module",
-  "keywords": [],
-  "author": "",
+  "files": [
+    "src/cli/familiar.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "ai",
+    "assistant",
+    "cli",
+    "conversation",
+    "familiar",
+    "tools",
+    "workflow"
+  ],
+  "author": "Chris van der Merwe",
   "license": "MIT",
-  "private": true,
+  "homepage": "https://familiar.chrsvdmrw.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chrisvdm/familiar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chrisvdm/familiar/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "vite build",
     "dev": "vite dev",

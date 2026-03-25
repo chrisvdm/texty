@@ -6,6 +6,31 @@ _coming soon..._
 
 familiar is a hosted conversation layer for executable systems.
 
+## CLI
+
+The first install path being prepared for *familiar* is the CLI.
+
+Planned install commands:
+
+```sh
+npx @familiar/cli@latest init
+```
+
+or:
+
+```sh
+npm install -g @familiar/cli
+familiar init
+```
+
+That package is not published yet. Until it is live, use the hosted setup page or `POST /api/v1/accounts`.
+
+The CLI talks to the hosted product by default:
+
+```text
+https://familiar.chrsvdmrw.dev
+```
+
 People talk to familiar. familiar keeps track of threads, context, and memory. When work needs to happen, familiar decides which tool should run, triggers that tool's target, and then explains the result back to the user.
 
 ## Features

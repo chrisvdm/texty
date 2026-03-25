@@ -45,7 +45,7 @@ POST /api/v1/input
 Send normalized text plus the channel context. *familiar* then decides whether to reply directly, ask for clarification, or invoke a tool.
 
 ```shell
-curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/input \
+curl -X POST https://familiar.chrsvdmrw.dev/api/v1/input \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
@@ -82,7 +82,7 @@ If `thread_id` is missing, *familiar* can still continue the correct thread base
 ### Tool sync example
 
 ```shell
-curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/tools/sync \
+curl -X POST https://familiar.chrsvdmrw.dev/api/v1/tools/sync \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{

@@ -3,7 +3,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
 
   // Name of your worker
-  "name": "texty",
+  "name": "familiar",
 
   // Cloudflare account for deployment
   "account_id": "16c8a6a972c436d273eb9d61a717afbe",

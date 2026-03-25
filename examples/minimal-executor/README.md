@@ -219,7 +219,7 @@ http://localhost:8787
 
 Live demo:
 
-- [https://texty.chrsvdmrw.workers.dev/sandbox/demo-executor](https://texty.chrsvdmrw.workers.dev/sandbox/demo-executor)
+- [https://familiar.chrsvdmrw.dev/sandbox/demo-executor](https://familiar.chrsvdmrw.dev/sandbox/demo-executor)
 
 Try messages like:
 

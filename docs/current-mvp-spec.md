@@ -50,7 +50,7 @@ Long-term target, but not required for MVP:
 
 ### Input
 
-`_familiar_` receives normalized text only.
+*familiar* receives normalized text only.
 
 If the original input was audio, voice, or another modality, it must be normalized into text before calling the API.
 
@@ -103,7 +103,7 @@ When familiar chooses a tool:
 - the executor decides sync vs async
 - async results return through `POST /api/v1/webhooks/executor`
 
-`_familiar_` is not a job runner.
+*familiar* is not a job runner.
 
 ## Required Endpoints
 
@@ -192,7 +192,6 @@ Request:
 
 ```json
 {
-  "user_id": "user_123",
   "thread_id": "thread_abc",
   "input": {
     "kind": "text",
@@ -226,7 +225,8 @@ Rules:
 
 - `integration_id` is optional
 - `tools` is optional
-- `user_id` is required
+- `user_id` is optional on token-authenticated POST requests
+- if `user_id` is omitted, runtime can derive it from the authenticated `account.id`
 - `input.kind` is always `"text"`
 - `input.text` must be non-empty normalized text
 
@@ -256,7 +256,6 @@ Request:
 
 ```json
 {
-  "user_id": "user_123",
   "tools": [
     {
       "tool_name": "spreadsheet.update_row",
@@ -341,7 +340,7 @@ Errors use one simple shape:
 {
   "error": {
     "code": "invalid_request",
-    "message": "The request payload is missing user_id.",
+    "message": "Invalid request payload.",
     "details": null
   }
 }
@@ -376,6 +375,19 @@ Behavior:
 - `familiar account show`
   - uses the stored token or `--token`
   - fetches `GET /api/v1/account`
+
+Planned npm install paths:
+
+- `npx @familiar/cli@latest init`
+- `npm install -g @familiar/cli`
+
+Current status:
+
+- the CLI package name is prepared
+- npm publish is not live yet
+- current working hosted bootstrap remains:
+  - `/setup`
+  - `POST /api/v1/accounts`
 
 Current local config path:
 

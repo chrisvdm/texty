@@ -4,58 +4,31 @@ This is the normal hosted setup path for using *familiar*.
 
 If you are new here, use these steps in order.
 
-## Step 1: Install the CLI
+## Step 1: Create your account
 
-Open your terminal.
+Use one of these working paths today.
 
-Copy and run:
+### In your browser
 
-```sh
-curl -fsSL https://familiar.sh/install | sh
-```
-
-What this does:
-
-- downloads the familiar command-line tool
-- installs it on your machine
-- lets you use commands like `familiar init`
-
-If you have never used `curl` before, that is okay.
-You can treat the command above as a single install command to copy and paste into your terminal.
-
-## Step 2: Create your account
-
-Run:
-
-```sh
-familiar init
-```
-
-What this does:
-
-- creates your *familiar* account
-- creates your first API token
-- stores that token locally so later CLI commands can use it
-
-By default, the CLI talks to:
+Open:
 
 ```text
-https://texty.chrsvdmrw.workers.dev
+https://familiar.chrsvdmrw.dev/setup
 ```
 
-You only need `--host` if you are using a different environment.
+That page creates an account and shows your first API token once.
 
-## Step 3: Check that it worked
-
-Run:
+### Through the API
 
 ```sh
-familiar whoami
+curl -X POST https://familiar.chrsvdmrw.dev/api/v1/accounts \
+  -H "Content-Type: application/json" \
+  -d '{}'
 ```
 
-That shows the account connected to your stored API token.
+That returns your first API token.
 
-## Step 4: Connect your app or bot
+## Step 2: Connect your app or bot
 
 Once you have a token, your app, bot, or webhook can call the hosted API.
 
@@ -66,7 +39,7 @@ The normal flow is:
 3. let *familiar* decide whether to reply, clarify, or call your executor
 4. if your executor is async, send the final result back through the executor webhook
 
-## Step 5: Read the next docs
+## Step 3: Read the next docs
 
 Use these pages next:
 
@@ -76,17 +49,30 @@ Use these pages next:
 - [Executors](/docs/executors)
 - [Webhooks](/docs/webhooks)
 
-## No CLI?
+## CLI Status
 
-If you cannot use the CLI yet, you can still create an account directly through the API:
+The CLI remains the intended primary setup path for humans and AI agents.
 
-```sh
-curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/accounts \
-  -H "Content-Type: application/json" \
-  -d '{}'
+The package is being prepared as:
+
+```text
+@familiar/cli
 ```
 
-That returns your first API token.
+Planned commands:
+
+```sh
+npx @familiar/cli@latest init
+```
+
+and:
+
+```sh
+npm install -g @familiar/cli
+familiar init
+```
+
+Until npm publish is live, use the browser or API path above.
 
 ## Contributor Docs
 

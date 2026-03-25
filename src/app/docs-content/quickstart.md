@@ -4,27 +4,17 @@ This is the smallest useful path for getting *familiar* working with your own ex
 
 ## Step 0: Create an account
 
-Use either the API or the CLI.
-
-### API
+Use the API today:
 
 ```shell
-curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/accounts \
+curl -X POST https://familiar.chrsvdmrw.dev/api/v1/accounts \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
 
 That returns your first API token.
 
-### CLI
-
-If you already have the familiar CLI available:
-
-```shell
-familiar init
-```
-
-That creates the account, issues the first API token, and stores it locally.
+The CLI is being prepared as `@familiar/cli`, but it is not published yet.
 
 ## What you need
 
@@ -55,7 +45,7 @@ Sync the tools for the current token-backed setup.
 The setup already exists behind your token after account creation. This call configures that setup. It does not create a new one.
 
 ```shell
-curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/tools/sync \
+curl -X POST https://familiar.chrsvdmrw.dev/api/v1/tools/sync \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
@@ -84,7 +74,7 @@ For now, the authenticated token is enough for the single-user happy path.
 Send normalized text into *familiar*.
 
 ```shell
-curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/input \
+curl -X POST https://familiar.chrsvdmrw.dev/api/v1/input \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
@@ -122,7 +112,7 @@ The executor receives structured tool input rather than raw user text.
     "label": "deployment check"
   },
   "context": {
-    "executor_result_webhook_url": "https://texty.chrsvdmrw.workers.dev/api/v1/webhooks/executor"
+    "executor_result_webhook_url": "https://familiar.chrsvdmrw.dev/api/v1/webhooks/executor"
   }
 }
 ```
@@ -163,7 +153,7 @@ Return either:
 If the executor returned `accepted`, send the final result later:
 
 ```shell
-curl -X POST https://texty.chrsvdmrw.workers.dev/api/v1/webhooks/executor \
+curl -X POST https://familiar.chrsvdmrw.dev/api/v1/webhooks/executor \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: exec_123" \
