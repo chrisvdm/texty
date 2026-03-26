@@ -205,6 +205,34 @@ test("tool string extraction strips save-note phrasing", () => {
 
 test("tool shortcut invocation resolves an active tool and keeps the raw remainder", () => {
   const result = parseToolShortcutInvocation({
+    content: "@todos.add buy milk and eggs",
+    tools: [
+      {
+        toolName: "todos.add",
+        description: "Add todo items",
+        inputSchema: {
+          type: "object",
+          properties: {
+            todo_items: {
+              type: "array",
+              items: {
+                type: "string",
+              },
+            },
+          },
+        },
+        policy: {},
+        status: "active",
+      },
+    ],
+  });
+
+  assert.equal(result?.tool.toolName, "todos.add");
+  assert.equal(result?.remainder, "buy milk and eggs");
+});
+
+test("tool shortcut invocation still accepts bracket form for compatibility", () => {
+  const result = parseToolShortcutInvocation({
     content: "@[todos.add] buy milk and eggs",
     tools: [
       {
@@ -235,6 +263,13 @@ test("tool shortcut exit phrases are recognized", () => {
   assert.equal(
     isToolShortcutExitInput({
       content: "that's all for todos.add",
+      toolName: "todos.add",
+    }),
+    true,
+  );
+  assert.equal(
+    isToolShortcutExitInput({
+      content: "that's all for @todos.add",
       toolName: "todos.add",
     }),
     true,

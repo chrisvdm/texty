@@ -217,6 +217,11 @@
         element.textContent = JSON.stringify(value, null, 2);
       };
 
+      const getFamiliarPayload = (payload) =>
+        payload && payload.observed && payload.observed.input_response
+          ? payload.observed.input_response
+          : payload;
+
       const renderChat = (messages) => {
         chatLogEl.innerHTML = "";
 
@@ -315,7 +320,7 @@
         });
         const response = await fetch(`__PLAYGROUND_PATH__?${params.toString()}`);
         const payload = await response.json();
-        renderJson(payloadViewEl, payload);
+        renderJson(payloadViewEl, getFamiliarPayload(payload));
         renderCountdowns(payload.countdowns || []);
 
         const completionMessage = findCompletionMessage(payload);
@@ -380,7 +385,7 @@
           });
 
           const payload = await response.json();
-          renderJson(payloadViewEl, payload);
+          renderJson(payloadViewEl, getFamiliarPayload(payload));
           messageHistory = [
             { role: "user", content: userText },
             ...(payload.assistant_reply ? [{ role: "assistant", content: payload.assistant_reply }] : []),

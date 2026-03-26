@@ -461,6 +461,11 @@
         element.textContent = JSON.stringify(value, null, 2);
       };
 
+      const getFamiliarPayload = (payload) =>
+        payload && payload.observed && payload.observed.input_response
+          ? payload.observed.input_response
+          : payload;
+
       const appendBubble = ({ label, role, content }) => {
         const bubble = document.createElement("div");
         bubble.className = "bubble " + role;
@@ -565,26 +570,7 @@
         };
 
         renderJson(payloadEl, {
-          demo_identity: {
-            integration_id: integrationIdEl.value,
-            user_id: userIdEl.value
-          },
-          sync_request: {
-            url: textyBaseUrlEl.value.replace(/\/$/, "") + "/api/v1/tools/sync"
-          },
-          input_request: {
-            url: textyBaseUrlEl.value.replace(/\/$/, "") + "/api/v1/input",
-            body: {
-              input: {
-                kind: "text",
-                text: userText
-              },
-              channel: {
-                type: "web",
-                id: "minimal-executor-playground"
-              }
-            }
-          }
+          status: "waiting_for_familiar_response"
         });
 
         appendBubble({
@@ -603,7 +589,7 @@
             ? await callEndpoint(playgroundPath, payload)
             : await callEndpoint(playgroundPath, payload);
 
-          renderJson(resultEl, result);
+          renderJson(resultEl, getFamiliarPayload(result.body));
 
           if (result.body && result.body.ok) {
             const assistantReply = result.body.assistant_reply || "No assistant reply returned.";

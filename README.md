@@ -171,10 +171,10 @@ There is also a dedicated async callback example:
 And there is a dedicated pinned tool example:
 
 - `examples/pinned-tool`
-  - enters a tool with `@[tool-name]`
+  - enters a tool with `@tool-name`
   - pins that tool for later messages in the thread
   - exits only on `that's all for [tool-name]`
-  - switches immediately when another `@[tool-name]` is invoked
+  - switches immediately when another `@tool-name` is invoked
 
 If you are new to this, think of it like this:
 
@@ -374,7 +374,7 @@ If `familiar.json` says `todos.add` requires:
 then familiar should send exactly that schema-shaped data to the executor once it is ready.
 
 If the user forces a tool explicitly in conversation, that still arrives at familiar as ordinary text.
-For example, `@[todos.add] call dad and buy milk` is not a separate input type.
+For example, `@todos.add call dad and buy milk` is not a separate input type.
 
 Plain English example:
 

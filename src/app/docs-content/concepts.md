@@ -69,14 +69,14 @@ Examples include:
 
 ## Pinned tool
 
-A user can make an explicit tool call with `@[tool-name]`.
+A user can make an explicit tool call with `@tool-name`.
 
 That pins the tool for the current thread so later text is passed verbatim to the same executor path.
 
 The pinned tool ends when:
 
 - the user says `that's all for [tool-name]`
-- the user invokes another `@[tool-name]`
+- the user invokes another `@tool-name`
 
 *familiar* does not silently exit the pinned tool state just because a message looks conversational.
 

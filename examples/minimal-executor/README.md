@@ -103,7 +103,7 @@ That keeps the executor example readable without mixing business logic into the 
 The current example also accepts two newer runtime helpers:
 
 - `payload.context.raw_input_text`
-  - used when the user forces a tool shortcut such as `@[todos.add]`
+  - used when the user forces a tool shortcut such as `@todos.add`
 - `payload.context.executor_result_webhook_url`
   - used when the executor returns `accepted` or `in_progress` and wants to notify familiar later with the final async result
 
@@ -200,8 +200,8 @@ familiar should decide to call `todos.add`, extract `todo_items`, and the execut
 
 You can also make an explicit tool call that pins a tool for the thread:
 
-- `@[todos.add] buy milk and eggs`
-- `@[todos.add] book the dog groomer for Friday`
+- `@todos.add buy milk and eggs`
+- `@todos.add book the dog groomer for Friday`
 
 In that pinned state, familiar bypasses its normal extraction step and passes the following text straight through to the tool payload until explicit exit or another pinned tool call.
 

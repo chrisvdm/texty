@@ -1,13 +1,13 @@
 # Pinned Tool Example
 
-This example is a dedicated demo for the `@[tool-name]` flow.
+This example is a dedicated demo for the `@tool-name` flow.
 
 It shows:
 
-1. pinning a tool with `@[notes.capture]`
+1. pinning a tool with `@notes.capture`
 2. continuing to send raw text to the same pinned tool across later messages
 3. explicitly exiting with `that's all for notes.capture`
-4. switching directly to another pinned tool with `@[ideas.capture]`
+4. switching directly to another pinned tool with `@ideas.capture`
 
 ## Files
 
@@ -42,10 +42,10 @@ Live demo:
 
 ## Try These Messages
 
-- `@[notes.capture] Capture these meeting notes verbatim`
+- `@notes.capture Capture these meeting notes verbatim`
 - `We need to move the launch to next Tuesday and confirm the staging checklist`
 - `that's all for notes.capture`
-- `@[ideas.capture] We should package this as a premium onboarding offer`
+- `@ideas.capture We should package this as a premium onboarding offer`
 
 ## Notes
 

@@ -123,7 +123,7 @@
       <section class="hero">
         <h1>Pinned Tool Example</h1>
         <p>
-          This example is for the `@[tool-name]` flow. It shows how familiar pins a
+          This example is for the `@tool-name` flow. It shows how familiar pins a
           tool for the thread, passes later text straight through to the selected
           tool, exits only on <code>that's all for [tool-name]</code>, and switches
           immediately when another tool is invoked.
@@ -160,11 +160,11 @@
 
             <label>
               Chat message
-              <textarea id="text">@[notes.capture] Capture these meeting notes verbatim</textarea>
+              <textarea id="text">@notes.capture Capture these meeting notes verbatim</textarea>
             </label>
 
             <div class="examples">
-              <button type="button" data-example="@[notes.capture] Capture these meeting notes verbatim">
+              <button type="button" data-example="@notes.capture Capture these meeting notes verbatim">
                 Enter notes tool
               </button>
               <button type="button" data-example="We need to move the launch to next Tuesday and confirm the staging checklist">
@@ -173,7 +173,7 @@
               <button type="button" data-example="that's all for notes.capture">
                 Exit notes
               </button>
-              <button type="button" data-example="@[ideas.capture] We should package this as a premium onboarding offer">
+              <button type="button" data-example="@ideas.capture We should package this as a premium onboarding offer">
                 Switch to ideas
               </button>
             </div>
@@ -228,6 +228,11 @@
       const renderJson = (element, value) => {
         element.textContent = JSON.stringify(value, null, 2);
       };
+
+      const getFamiliarPayload = (payload) =>
+        payload && payload.observed && payload.observed.input_response
+          ? payload.observed.input_response
+          : payload;
 
       const renderConversation = ({ user, assistant }) => {
         chatLogEl.innerHTML = "";
@@ -296,7 +301,7 @@
           });
 
           const payload = await response.json();
-          renderJson(payloadViewEl, payload);
+          renderJson(payloadViewEl, getFamiliarPayload(payload));
           renderConversation(payload.transcript || { user: userText, assistant: "" });
           renderEntries(notesStreamEl, payload.captured?.notes, "No notes captured yet.");
           renderEntries(ideasStreamEl, payload.captured?.ideas, "No ideas captured yet.");

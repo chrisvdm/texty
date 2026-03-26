@@ -20,10 +20,13 @@ Make the public example integrations reflect the current token-backed MVP contra
   - appended async completion messages to the chat instead of replacing the initial assistant reply
   - matched completion callbacks to the current execution instead of reusing older messages from the same demo user or thread
   - limited the countdown panel to the latest run so older history does not make new runs look completed immediately
+- Changed the example payload panels to show the actual `input_response` from *familiar* instead of the example wrapper object.
+- Updated explicit tool invocation syntax to `@tool-name` across the runtime parser, tests, examples, and the main user-facing docs.
+  - kept `@[tool-name]` working as a compatibility input for now
 
 ## Result
 
-The example integrations now follow the current public API contract closely enough to copy the integration pattern, and the async countdown demo now behaves like a real delayed completion flow instead of surfacing stale UI state.
+The example integrations now follow the current public API contract closely enough to copy the integration pattern, the async countdown demo behaves like a real delayed completion flow instead of surfacing stale UI state, and the pinned-tool flow now matches the intended agent-like `@tool-name` syntax.
 
 ## Verification
 
@@ -33,4 +36,5 @@ The example integrations now follow the current public API contract closely enou
 - `node --check examples/async-countdown/executor.mjs`
 - `node --check examples/pinned-tool/server.mjs`
 - `node --check examples/pinned-tool/executor.mjs`
+- `node --experimental-strip-types --experimental-specifier-resolution=node --test src/app/provider/provider.logic.test.ts`
 - `npm run types`

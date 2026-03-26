@@ -155,9 +155,9 @@ export const extractToolStringValue = ({
   return null;
 };
 
-const TOOL_SHORTCUT_PATTERN = /^@\[(.+?)\](?:\s+([\s\S]*))?$/;
+const TOOL_SHORTCUT_PATTERN = /^@(?:\[(.+?)\]|([A-Za-z0-9._-]+))(?:\s+([\s\S]*))?$/;
 const TOOL_SHORTCUT_EXIT_PATTERN =
-  /^that'?s all for\s+(@\[(.+?)\]|(.+))$/i;
+  /^that'?s all for\s+(@(?:\[(.+?)\]|([A-Za-z0-9._-]+))|(.+))$/i;
 
 export const parseToolShortcutInvocation = ({
   content,
@@ -172,7 +172,7 @@ export const parseToolShortcutInvocation = ({
     return null;
   }
 
-  const requestedToolName = match[1]?.trim();
+  const requestedToolName = (match[1] || match[2] || "").trim();
 
   if (!requestedToolName) {
     return null;
@@ -188,7 +188,7 @@ export const parseToolShortcutInvocation = ({
     return null;
   }
 
-  const remainder = match[2]?.trim() || "";
+  const remainder = match[3]?.trim() || "";
 
   return {
     tool,
@@ -210,7 +210,9 @@ export const isToolShortcutExitInput = ({
     return false;
   }
 
-  const requestedToolName = (match[2] || match[3] || "").trim().toLowerCase();
+  const requestedToolName = (match[2] || match[3] || match[4] || "")
+    .trim()
+    .toLowerCase();
 
   return Boolean(requestedToolName) && requestedToolName === toolName.trim().toLowerCase();
 };

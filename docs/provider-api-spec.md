@@ -291,7 +291,7 @@ Possible execution states:
 
 Shortcut note:
 
-- explicit tool shortcuts such as `@[tool-name]` are still just text inside `input.text`
+- explicit tool shortcuts such as `@tool-name` are still just text inside `input.text`
 - familiar does not need a separate voice or shortcut input type on the API surface
 
 Rate limiting:
@@ -536,7 +536,7 @@ Current runtime note:
 Current runtime convenience fields may include:
 
 - `context.raw_input_text`
-  - present when the user intentionally forced a tool via text such as `@[tool-name]`
+  - present when the user intentionally forced a tool via text such as `@tool-name`
 - `context.executor_result_webhook_url`
   - present when familiar wants the executor to call back later with an async result
 
